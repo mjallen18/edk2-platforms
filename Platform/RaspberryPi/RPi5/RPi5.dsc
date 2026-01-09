@@ -617,6 +617,7 @@
   Platform/RaspberryPi/Drivers/RpiFirmwareDxe/RpiFirmwareDxe.inf
   Platform/RaspberryPi/RPi5/Drivers/RpiPlatformDxe/RpiPlatformDxe.inf
   Platform/RaspberryPi/Drivers/FdtDxe/FdtDxe.inf
+  Platform/RaspberryPi/Drivers/ConfigDxe/ConfigDxe.inf
   ArmPkg/Drivers/TimerDxe/TimerDxe.inf
   MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf
   MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
