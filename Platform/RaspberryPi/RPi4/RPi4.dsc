@@ -176,6 +176,10 @@
   # The "segment lib" provides the CAM accessors/etc when they aren't ECAM standard
   PciSegmentLib|Silicon/Broadcom/Bcm27xx/Library/Bcm2711PciSegmentLib/PciSegmentLib.inf
 
+  FdtPlatformLib|Platform/RaspberryPi/Library/FdtPlatformLib/FdtPlatformLib.inf
+  BoardInfoLib|Platform/RaspberryPi/Library/BoardInfoLib/BoardInfoLib.inf
+  BoardRevisionHelperLib|Platform/RaspberryPi/Library/BoardRevisionHelperLib/BoardRevisionHelperLib.inf
+
 [LibraryClasses.common.SEC]
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   BaseMemoryLib|MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
@@ -435,6 +439,16 @@
   gRaspberryPiTokenSpaceGuid.PcdGicPmuIrq1|0x31
   gRaspberryPiTokenSpaceGuid.PcdGicPmuIrq2|0x32
   gRaspberryPiTokenSpaceGuid.PcdGicPmuIrq3|0x33
+
+  #
+  # Mailbox
+  #
+  gRaspberryPiTokenSpaceGuid.PcdFwMailboxBaseAddress|0xfe00b880
+
+  #
+  # RNG
+  #
+  gBcm283xTokenSpaceGuid.PcdBcm2838RngBaseAddress|0x7e104000
 
   #
   # Fixed CPU settings.
@@ -763,6 +777,11 @@
   # NVMe boot devices
   #
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
+
+  #
+  # EFI Memory Attribute Protocol Manager
+  #
+  Platform/RaspberryPi/Drivers/MemoryAttributeManagerDxe/MemoryAttributeManagerDxe.inf
 
   #
   # UEFI application (Shell Embedded Boot Loader)
