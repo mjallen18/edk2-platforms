@@ -48,6 +48,21 @@
   DEFINE TFA_BUILD_BL31 = $(TFA_BUILD_ARTIFACTS)/bl31.bin
 !endif
 
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  ArmPkg/ArmPkg.dec
+  ArmPlatformPkg/ArmPlatformPkg.dec
+  UefiCpuPkg/UefiCpuPkg.dec
+  ShellPkg/ShellPkg.dec
+  NetworkPkg/NetworkPkg.dec
+  CryptoPkg/CryptoPkg.dec
+  FatPkg/FatPkg.dec
+  SecurityPkg/SecurityPkg.dec
+  Silicon/Broadcom/Bcm27xx/Bcm27xx.dec
+  Silicon/RaspberryPi/RpiSiliconPkg/RpiSiliconPkg.dec
+
 ################################################################################
 #
 # Library Class section - list of all Library Classes needed by this Platform.
