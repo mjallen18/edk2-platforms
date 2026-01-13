@@ -281,7 +281,10 @@
   #  It could be set FALSE to save size.
   gEfiMdeModulePkgTokenSpaceGuid.PcdConOutGopSupport|TRUE
 
-[PcdsPatchableInModule.common]
+[PcdsPatchableInModule]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialClockRate|48000000
+
+[PcdsFixedAtBuild.common]
   gEfiMdePkgTokenSpaceGuid.PcdMaximumUnicodeStringLength|1000000
   gEfiMdePkgTokenSpaceGuid.PcdMaximumAsciiStringLength|1000000
   gEfiMdePkgTokenSpaceGuid.PcdMaximumLinkedListLength|1000000
