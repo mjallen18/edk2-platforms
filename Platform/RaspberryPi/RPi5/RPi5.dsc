@@ -561,6 +561,7 @@
   gRaspberryPiTokenSpaceGuid.PcdRamLimitTo3GB       | 0
   gRaspberryPiTokenSpaceGuid.PcdSdIsArasan          | 0
   gRaspberryPiTokenSpaceGuid.PcdMmcDisableMulti     | 0
+  gRaspberryPiTokenSpaceGuid.PcdCpuClock             | 0
 
 ################################################################################
 #
