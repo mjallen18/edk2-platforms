@@ -373,3 +373,28 @@ GpioSetDirection (
      break;
   }
 }
+
+//
+// Legacy wrappers for code still using the bcm283x-style API
+//
+VOID
+EFIAPI
+GpioPinFuncSet (
+  IN UINTN  Pin,
+  IN UINTN  Function
+  )
+{
+  // All board GPIOs used by ConfigDxe live in the main GIO block
+  GpioSetFunction (BCM2712_GPIO_GIO, (UINT8)Pin, (UINT8)Function);
+}
+
+VOID
+EFIAPI
+GpioPinConfigure (
+  IN UINTN  Pin,
+  IN UINTN  Value
+  )
+{
+  // Treat non‑zero as logic high, zero as logic low
+  GpioWrite (BCM2712_GPIO_GIO, (UINT8)Pin, Value != 0);
+}
