@@ -12,6 +12,8 @@
 #include <Library/BoardInfoLib.h>
 #include <Library/BoardRevisionHelperLib.h>
 #include <Library/DebugLib.h>
+#include <Library/FdtLib.h>
+#include <Library/BaseMemoryLib.h>
 #include <Library/DxeServicesLib.h>
 #include <Library/FdtPlatformLib.h>
 #include <Library/MemoryAllocationLib.h>

@@ -36,6 +36,7 @@
   MemoryAllocationLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint
+  BaseMemoryLib
 
 [Guids]
   gFdtTableGuid
