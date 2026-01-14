@@ -547,6 +547,13 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase|0
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase|0
 
+  # Required by ConfigDxe.c (runtime setters)
+  gRaspberryPiTokenSpaceGuid.PcdMmcSdHighSpeedMHz    | 50
+  gRaspberryPiTokenSpaceGuid.PcdMmcEnableDma         | 1
+  gRaspberryPiTokenSpaceGuid.PcdDebugEnableJTAG      | 0
+  gRaspberryPiTokenSpaceGuid.PcdUartInUse            | 0
+  gRaspberryPiTokenSpaceGuid.PcdMiniUartClockRate    | 0
+
 ################################################################################
 #
 # Components Section - list of all EDK II Modules needed by this Platform
