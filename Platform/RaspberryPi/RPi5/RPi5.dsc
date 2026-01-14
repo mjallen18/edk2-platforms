@@ -553,6 +553,9 @@
   gRaspberryPiTokenSpaceGuid.PcdDebugEnableJTAG      | 0
   gRaspberryPiTokenSpaceGuid.PcdUartInUse            | 0
   gRaspberryPiTokenSpaceGuid.PcdMiniUartClockRate    | 0
+  gRaspberryPiTokenSpaceGuid.PcdMmcForceDefaultSpeed | 0
+  gRaspberryPiTokenSpaceGuid.PcdMmcForce1Bit         | 0
+  gRaspberryPiTokenSpaceGuid.PcdMmcSdDefaultSpeedMHz | 25
 
 ################################################################################
 #
