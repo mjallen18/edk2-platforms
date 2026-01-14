@@ -556,6 +556,11 @@
   gRaspberryPiTokenSpaceGuid.PcdMmcForceDefaultSpeed | 0
   gRaspberryPiTokenSpaceGuid.PcdMmcForce1Bit         | 0
   gRaspberryPiTokenSpaceGuid.PcdMmcSdDefaultSpeedMHz | 25
+  gRaspberryPiTokenSpaceGuid.PcdCustomCpuClock      | 0
+  gRaspberryPiTokenSpaceGuid.PcdRamMoreThan3GB      | 1
+  gRaspberryPiTokenSpaceGuid.PcdRamLimitTo3GB       | 0
+  gRaspberryPiTokenSpaceGuid.PcdSdIsArasan          | 0
+  gRaspberryPiTokenSpaceGuid.PcdMmcDisableMulti     | 0
 
 ################################################################################
 #
