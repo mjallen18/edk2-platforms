@@ -385,7 +385,7 @@ GpioPinFuncSet (
   )
 {
   // All board GPIOs used by ConfigDxe live in the main GIO block
-  GpioSetFunction (BCM2712_GPIO_TYPE_GIO, (UINT8)Pin, (UINT8)Function);
+  GpioSetFunction (BCM2712_GIO, (UINT8)Pin, (UINT8)Function);
 }
 
 VOID
@@ -396,5 +396,5 @@ GpioPinConfigure (
   )
 {
   // Treat non‑zero as logic high, zero as logic low
-  GpioWrite (BCM2712_GPIO_TYPE_GIO, (UINT8)Pin, Value != 0);
+  GpioWrite (BCM2712_GIO, (UINT8)Pin, Value != 0);
 }
