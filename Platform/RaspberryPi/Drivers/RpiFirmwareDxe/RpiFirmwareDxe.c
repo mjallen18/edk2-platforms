@@ -1,5 +1,6 @@
 /** @file
  *
+ *  Copyright (c) 2023, Mario Bălănică <mariobalanica02@gmail.com>
  *  Copyright (c) 2020, Pete Batard <pete@akeo.ie>
  *  Copyright (c) 2019, ARM Limited. All rights reserved.
  *  Copyright (c) 2017-2020, Andrei Warkentin <andrey.warkentin@gmail.com>
@@ -15,13 +16,16 @@
 #include <Library/DmaLib.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
+#include <Library/CacheMaintenanceLib.h>
 #include <Library/DebugLib.h>
+#include <Library/DxeServicesTableLib.h>
 #include <Library/IoLib.h>
 #include <Library/SynchronizationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
+#include <Library/UefiRuntimeLib.h>
 
-#include <IndustryStandard/Bcm2836.h>
+#include <IndustryStandard/Bcm2836Mbox.h>
 #include <IndustryStandard/RpiMbox.h>
 
 #include <Protocol/RpiFirmware.h>
@@ -254,9 +258,25 @@ typedef struct {
   RPI_FW_GPIO_SET_CFG_TAG      TagBody;
   UINT32                       EndTag;
 } RPI_FW_NOTIFY_GPIO_SET_CFG_CMD;
+
+typedef struct {
+  UINT32                    Register;
+  UINT32                    Value;
+} RPI_FW_RTC_TAG;
+
+typedef struct {
+  RPI_FW_BUFFER_HEAD        BufferHead;
+  RPI_FW_TAG_HEAD           TagHead;
+  RPI_FW_RTC_TAG            TagBody;
+  UINT32                    EndTag;
+} RPI_FW_RTC_CMD;
+
 #pragma pack()
 
+STATIC UINTN mMboxBaseAddress;
+
 STATIC VOID  *mDmaBuffer;
+STATIC UINTN mDmaBufferSize;
 STATIC VOID  *mDmaBufferMapping;
 STATIC UINTN mDmaBufferBusAddress;
 
@@ -276,12 +296,12 @@ DrainMailbox (
   //
   Tries = 0;
   do {
-    Val = MmioRead32 (BCM2836_MBOX_BASE_ADDRESS + BCM2836_MBOX_STATUS_OFFSET);
+    Val = MmioRead32 (mMboxBaseAddress + BCM2836_MBOX_STATUS_OFFSET);
     if (Val & (1U << BCM2836_MBOX_STATUS_EMPTY)) {
       return TRUE;
     }
     ArmDataSynchronizationBarrier ();
-    MmioRead32 (BCM2836_MBOX_BASE_ADDRESS + BCM2836_MBOX_READ_OFFSET);
+    MmioRead32 (mMboxBaseAddress + BCM2836_MBOX_READ_OFFSET);
   } while (++Tries < RPI_MBOX_MAX_TRIES);
 
   return FALSE;
@@ -301,7 +321,7 @@ MailboxWaitForStatusCleared (
   //
   Tries = 0;
   do {
-    Val = MmioRead32 (BCM2836_MBOX_BASE_ADDRESS + BCM2836_MBOX_STATUS_OFFSET);
+    Val = MmioRead32 (mMboxBaseAddress + BCM2836_MBOX_STATUS_OFFSET);
     if ((Val & StatusMask) == 0) {
       return TRUE;
     }
@@ -341,12 +361,20 @@ MailboxTransaction (
     return EFI_TIMEOUT;
   }
 
+  //
+  // The DMA buffer is initially mapped as WC/Normal-NC, but it
+  // somehow ends up being cached at runtime.
+  //
+  if (EfiAtRuntime ()) {
+    WriteBackDataCacheRange (mDmaBuffer, mDmaBufferSize);
+  }
+
   ArmDataSynchronizationBarrier ();
 
   //
   // Start the mailbox transaction
   //
-  MmioWrite32 (BCM2836_MBOX_BASE_ADDRESS + BCM2836_MBOX_WRITE_OFFSET,
+  MmioWrite32 (mMboxBaseAddress + BCM2836_MBOX_WRITE_OFFSET,
     (UINT32)((UINTN)mDmaBufferBusAddress | Channel));
 
   ArmDataSynchronizationBarrier ();
@@ -360,11 +388,15 @@ MailboxTransaction (
     return EFI_TIMEOUT;
   }
 
+  if (EfiAtRuntime ()) {
+    InvalidateDataCacheRange (mDmaBuffer, mDmaBufferSize);
+  }
+
   //
   // Read back the result
   //
   ArmDataSynchronizationBarrier ();
-  *Result = MmioRead32 (BCM2836_MBOX_BASE_ADDRESS + BCM2836_MBOX_READ_OFFSET);
+  *Result = MmioRead32 (mMboxBaseAddress + BCM2836_MBOX_READ_OFFSET);
   ArmDataSynchronizationBarrier ();
 
   return EFI_SUCCESS;
@@ -692,211 +724,6 @@ RpiFirmwareGetFirmwareRevision (
 }
 
 STATIC
-CHAR8*
-EFIAPI
-RpiFirmwareGetModelName (
-  IN INTN ModelId
-  )
-{
-  UINT32  Revision;
-
-  // If a negative ModelId is passed, detect it.
-  if ((ModelId < 0) && (RpiFirmwareGetModelRevision (&Revision) == EFI_SUCCESS)) {
-    ModelId = (Revision >> 4) & 0xFF;
-  }
-
-  switch (ModelId) {
-  // www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md
-  case 0x00:
-    return "Raspberry Pi Model A";
-  case 0x01:
-    return "Raspberry Pi Model B";
-  case 0x02:
-    return "Raspberry Pi Model A+";
-  case 0x03:
-    return "Raspberry Pi Model B+";
-  case 0x04:
-    return "Raspberry Pi 2 Model B";
-  case 0x06:
-    return "Raspberry Pi Compute Module 1";
-  case 0x08:
-    return "Raspberry Pi 3 Model B";
-  case 0x09:
-    return "Raspberry Pi Zero";
-  case 0x0A:
-    return "Raspberry Pi Compute Module 3";
-  case 0x0C:
-    return "Raspberry Pi Zero W";
-  case 0x0D:
-    return "Raspberry Pi 3 Model B+";
-  case 0x0E:
-    return "Raspberry Pi 3 Model A+";
-  case 0x10:
-    return "Raspberry Pi Compute Module 3+";
-  case 0x11:
-    return "Raspberry Pi 4 Model B";
-  case 0x12:
-    return "Raspberry Pi Zero 2 W";
-  case 0x13:
-    return "Raspberry Pi 400";
-  case 0x14:
-    return "Raspberry Pi Compute Module 4";
-  default:
-    return "Unknown Raspberry Pi Model";
-  }
-}
-
-STATIC
-EFI_STATUS
-EFIAPI
-RPiFirmwareGetModelInstalledMB (
-  OUT   UINT32 *InstalledMB
-  )
-{
-  EFI_STATUS Status;
-  UINT32     Revision;
-
-  Status = RpiFirmwareGetModelRevision(&Revision);
-  if (EFI_ERROR(Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: Could not get the board revision: Status == %r\n",
-      __func__, Status));
-    return EFI_DEVICE_ERROR;
-  }
-
-  //
-  // www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md
-  // Bits [20-22] indicate the amount of memory starting with 256MB (000b)
-  // and doubling in size for each value (001b = 512 MB, 010b = 1GB, etc.)
-  //
-  *InstalledMB = 256 << ((Revision >> 20) & 0x07);
-  return EFI_SUCCESS;
-}
-
-STATIC
-EFI_STATUS
-EFIAPI
-RPiFirmwareGetModelFamily (
-  OUT   UINT32 *ModelFamily
-  )
-{
-  EFI_STATUS                  Status;
-  UINT32                      Revision;
-  UINT32                      ModelId;
-
-  Status = RpiFirmwareGetModelRevision(&Revision);
-  if (EFI_ERROR(Status)) {
-    DEBUG ((DEBUG_ERROR,
-      "%a: Could not get the board revision: Status == %r\n",
-      __func__, Status));
-    return EFI_DEVICE_ERROR;
-  } else {
-    ModelId = (Revision >> 4) & 0xFF;
-  }
-
-  switch (ModelId) {
-  // www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md
-  case 0x00:          // Raspberry Pi Model A
-  case 0x01:          // Raspberry Pi Model B
-  case 0x02:          // Raspberry Pi Model A+
-  case 0x03:          // Raspberry Pi Model B+
-  case 0x06:          // Raspberry Pi Compute Module 1
-  case 0x09:          // Raspberry Pi Zero
-  case 0x0C:          // Raspberry Pi Zero W
-      *ModelFamily = 1;
-      break;
-  case 0x04:          // Raspberry Pi 2 Model B
-      *ModelFamily = 2;
-      break;
-  case 0x08:          // Raspberry Pi 3 Model B
-  case 0x0A:          // Raspberry Pi Compute Module 3
-  case 0x0D:          // Raspberry Pi 3 Model B+
-  case 0x0E:          // Raspberry Pi 3 Model A+
-  case 0x10:          // Raspberry Pi Compute Module 3+
-  case 0x12:          // Raspberry Pi Zero 2 W
-      *ModelFamily = 3;
-      break;
-  case 0x11:          // Raspberry Pi 4 Model B
-  case 0x13:          // Raspberry Pi 400
-  case 0x14:          // Raspberry Pi Computer Module 4
-      *ModelFamily = 4;
-      break;
-  default:
-      *ModelFamily = 0;
-      break;
-  }
-
-  if (*ModelFamily == 0) {
-    DEBUG ((DEBUG_ERROR,
-      "%a: Unknown Raspberry Pi model family : ModelId == 0x%x\n",
-      __func__, ModelId));
-    return EFI_UNSUPPORTED;
-    }
-
-  return EFI_SUCCESS;
-}
-
-STATIC
-CHAR8*
-EFIAPI
-RpiFirmwareGetManufacturerName (
-  IN INTN ManufacturerId
-  )
-{
-  UINT32  Revision;
-
-  // If a negative ModelId is passed, detect it.
-  if ((ManufacturerId < 0) && (RpiFirmwareGetModelRevision (&Revision) == EFI_SUCCESS)) {
-    ManufacturerId = (Revision >> 16) & 0x0F;
-  }
-
-  switch (ManufacturerId) {
-  // www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md
-  case 0x00:
-    return "Sony UK";
-  case 0x01:
-    return "Egoman";
-  case 0x02:
-  case 0x04:
-    return "Embest";
-  case 0x03:
-    return "Sony Japan";
-  case 0x05:
-    return "Stadium";
-  default:
-    return "Unknown Manufacturer";
-  }
-}
-
-STATIC
-CHAR8*
-EFIAPI
-RpiFirmwareGetCpuName (
-  IN INTN CpuId
-  )
-{
-  UINT32  Revision;
-
-  // If a negative CpuId is passed, detect it.
-  if ((CpuId < 0) && (RpiFirmwareGetModelRevision (&Revision) == EFI_SUCCESS)) {
-    CpuId = (Revision >> 12) & 0x0F;
-  }
-
-  switch (CpuId) {
-  // www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/README.md
-  case 0x00:
-    return "BCM2835 (ARM11)";
-  case 0x01:
-    return "BCM2836 (ARM Cortex-A7)";
-  case 0x02:
-    return "BCM2837 (ARM Cortex-A53)";
-  case 0x03:
-    return "BCM2711 (ARM Cortex-A72)";
-  default:
-    return "Unknown CPU Model";
-  }
-}
-
-STATIC
 EFI_STATUS
 EFIAPI
 RpiFirmwareGetFbSize (
@@ -1042,7 +869,7 @@ RpiFirmwareAllocFb (
   }
 
   *Pitch = Cmd->Pitch.Pitch;
-  *FbBase = Cmd->AllocFb.AlignmentBase - BCM2836_DMA_DEVICE_OFFSET;
+  *FbBase = Cmd->AllocFb.AlignmentBase & ~PcdGet64 (PcdDmaDeviceOffset);
   *FbSize = Cmd->AllocFb.Size;
   ReleaseSpinLock (&mMailboxLock);
 
@@ -1504,6 +1331,96 @@ RpiFirmwareNotifyGpioSetCfg (
   return Status;
 }
 
+STATIC
+EFI_STATUS
+EFIAPI
+RpiFirmwareGetRtc (
+  IN   RASPBERRY_PI_RTC_REGISTER  Register,
+  OUT  UINT32                     *Value
+  )
+{
+  RPI_FW_RTC_CMD               *Cmd;
+  EFI_STATUS                   Status;
+  UINT32                       Result;
+
+  if (!AcquireSpinLockOrFail (&mMailboxLock)) {
+    DEBUG ((DEBUG_ERROR, "%a: failed to acquire spinlock\n", __func__));
+    return EFI_DEVICE_ERROR;
+  }
+
+  Cmd = mDmaBuffer;
+  ZeroMem (Cmd, sizeof (*Cmd));
+
+  Cmd->BufferHead.BufferSize  = sizeof (*Cmd);
+  Cmd->BufferHead.Response    = 0;
+  Cmd->TagHead.TagId          = RPI_MBOX_GET_RTC_REG;
+  Cmd->TagHead.TagSize        = sizeof (Cmd->TagBody);
+  Cmd->TagHead.TagValueSize   = 0;
+  Cmd->TagBody.Register       = Register;
+  Cmd->TagBody.Value          = 0;
+  Cmd->EndTag                 = 0;
+
+  Status = MailboxTransaction (Cmd->BufferHead.BufferSize, RPI_MBOX_VC_CHANNEL, &Result);
+
+  if (EFI_ERROR (Status) ||
+      Cmd->BufferHead.Response != RPI_MBOX_RESP_SUCCESS) {
+    DEBUG ((DEBUG_ERROR,
+      "%a: mailbox  transaction error: Status == %r, Response == 0x%x\n",
+      __func__, Status, Cmd->BufferHead.Response));
+    Status = EFI_DEVICE_ERROR;
+  } else {
+    *Value = Cmd->TagBody.Value;
+  }
+
+  ReleaseSpinLock (&mMailboxLock);
+
+  return Status;
+}
+
+STATIC
+EFI_STATUS
+EFIAPI
+RpiFirmwareSetRtc (
+  IN   RASPBERRY_PI_RTC_REGISTER  Register,
+  IN   UINT32                     Value
+  )
+{
+  RPI_FW_RTC_CMD               *Cmd;
+  EFI_STATUS                   Status;
+  UINT32                       Result;
+
+  if (!AcquireSpinLockOrFail (&mMailboxLock)) {
+    DEBUG ((DEBUG_ERROR, "%a: failed to acquire spinlock\n", __func__));
+    return EFI_DEVICE_ERROR;
+  }
+
+  Cmd = mDmaBuffer;
+  ZeroMem (Cmd, sizeof (*Cmd));
+
+  Cmd->BufferHead.BufferSize  = sizeof (*Cmd);
+  Cmd->BufferHead.Response    = 0;
+  Cmd->TagHead.TagId          = RPI_MBOX_SET_RTC_REG;
+  Cmd->TagHead.TagSize        = sizeof (Cmd->TagBody);
+  Cmd->TagHead.TagValueSize   = 0;
+  Cmd->TagBody.Register       = Register;
+  Cmd->TagBody.Value          = Value;
+  Cmd->EndTag                 = 0;
+
+  Status = MailboxTransaction (Cmd->BufferHead.BufferSize, RPI_MBOX_VC_CHANNEL, &Result);
+
+  if (EFI_ERROR (Status) ||
+      Cmd->BufferHead.Response != RPI_MBOX_RESP_SUCCESS) {
+    DEBUG ((DEBUG_ERROR,
+      "%a: mailbox  transaction error: Status == %r, Response == 0x%x\n",
+      __func__, Status, Cmd->BufferHead.Response));
+    Status = EFI_DEVICE_ERROR;
+  }
+
+  ReleaseSpinLock (&mMailboxLock);
+
+  return Status;
+}
+
 STATIC RASPBERRY_PI_FIRMWARE_PROTOCOL mRpiFirmwareProtocol = {
   RpiFirmwareSetPowerState,
   RpiFirmwareGetMacAddress,
@@ -1519,18 +1436,29 @@ STATIC RASPBERRY_PI_FIRMWARE_PROTOCOL mRpiFirmwareProtocol = {
   RpiFirmwareGetSerial,
   RpiFirmwareGetModel,
   RpiFirmwareGetModelRevision,
-  RpiFirmwareGetModelName,
-  RPiFirmwareGetModelFamily,
   RpiFirmwareGetFirmwareRevision,
-  RpiFirmwareGetManufacturerName,
-  RpiFirmwareGetCpuName,
   RpiFirmwareGetArmMemory,
-  RPiFirmwareGetModelInstalledMB,
   RpiFirmwareNotifyXhciReset,
   RpiFirmwareGetCurrentClockState,
   RpiFirmwareSetClockState,
-  RpiFirmwareNotifyGpioSetCfg
+  RpiFirmwareNotifyGpioSetCfg,
+  RpiFirmwareGetRtc,
+  RpiFirmwareSetRtc,
 };
+
+STATIC
+VOID
+EFIAPI
+RpiFirmwareVirtualAddressChangeNotify (
+  IN EFI_EVENT        Event,
+  IN VOID             *Context
+  )
+{
+  EfiConvertPointer (0x0, (VOID **)&mMboxBaseAddress);
+  EfiConvertPointer (0x0, (VOID **)&mDmaBuffer);
+  EfiConvertPointer (0x0, (VOID **)&mRpiFirmwareProtocol.GetRtc);
+  EfiConvertPointer (0x0, (VOID **)&mRpiFirmwareProtocol.SetRtc);
+}
 
 /**
   Initialize the state information for the CPU Architectural Protocol
@@ -1550,7 +1478,10 @@ RpiFirmwareDxeInitialize (
   )
 {
   EFI_STATUS      Status;
-  UINTN           BufferSize;
+  UINTN           AlignedMboxAddress;
+  EFI_EVENT       VirtualAddressChangeEvent = NULL;
+
+  mMboxBaseAddress = PcdGet64 (PcdFwMailboxBaseAddress);
 
   //
   // We only need one of these
@@ -1559,14 +1490,14 @@ RpiFirmwareDxeInitialize (
 
   InitializeSpinLock (&mMailboxLock);
 
-  Status = DmaAllocateBuffer (EfiBootServicesData, NUM_PAGES, &mDmaBuffer);
+  Status = DmaAllocateBuffer (EfiRuntimeServicesData, NUM_PAGES, &mDmaBuffer);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: failed to allocate DMA buffer (Status == %r)\n", __func__));
     return Status;
   }
 
-  BufferSize = EFI_PAGES_TO_SIZE (NUM_PAGES);
-  Status = DmaMap (MapOperationBusMasterCommonBuffer, mDmaBuffer, &BufferSize,
+  mDmaBufferSize = EFI_PAGES_TO_SIZE (NUM_PAGES);
+  Status = DmaMap (MapOperationBusMasterCommonBuffer, mDmaBuffer, &mDmaBufferSize,
              &mDmaBufferBusAddress, &mDmaBufferMapping);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: failed to map DMA buffer (Status == %r)\n", __func__));
@@ -1586,6 +1517,42 @@ RpiFirmwareDxeInitialize (
     DEBUG ((DEBUG_ERROR,
       "%a: failed to install RPI firmware protocol (Status == %r)\n",
       __func__, Status));
+    goto UnmapBuffer;
+  }
+
+  AlignedMboxAddress = mMboxBaseAddress & ~(EFI_PAGE_SIZE - 1);
+
+  Status = gDS->AddMemorySpace (
+                  EfiGcdMemoryTypeMemoryMappedIo,
+                  AlignedMboxAddress,
+                  EFI_PAGE_SIZE,
+                  EFI_MEMORY_UC | EFI_MEMORY_RUNTIME);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: AddMemorySpace failed. Status=%r\n",
+            __func__, Status));
+    goto UnmapBuffer;
+  }
+
+  Status = gDS->SetMemorySpaceAttributes (
+                  AlignedMboxAddress,
+                  EFI_PAGE_SIZE,
+                  EFI_MEMORY_UC | EFI_MEMORY_RUNTIME);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: SetMemorySpaceAttributes failed. Status=%r\n",
+            __func__, Status));
+    goto UnmapBuffer;
+  }
+
+  Status = gBS->CreateEventEx (
+                  EVT_NOTIFY_SIGNAL,
+                  TPL_NOTIFY,
+                  RpiFirmwareVirtualAddressChangeNotify,
+                  NULL,
+                  &gEfiEventVirtualAddressChangeGuid,
+                  &VirtualAddressChangeEvent);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: failed to register for virtual address change. Status=%r\n",
+            __func__, Status));
     goto UnmapBuffer;
   }
 

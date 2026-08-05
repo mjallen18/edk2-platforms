@@ -170,6 +170,10 @@
   VariablePolicyHelperLib|MdeModulePkg/Library/VariablePolicyHelperLib/VariablePolicyHelperLib.inf
   GpioLib|Silicon/Broadcom/Bcm283x/Library/GpioLib/GpioLib.inf
 
+  FdtPlatformLib|Platform/RaspberryPi/Library/FdtPlatformLib/FdtPlatformLib.inf
+  BoardInfoLib|Platform/RaspberryPi/Library/BoardInfoLib/BoardInfoLib.inf
+  BoardRevisionHelperLib|Platform/RaspberryPi/Library/BoardRevisionHelperLib/BoardRevisionHelperLib.inf
+
 [LibraryClasses.common.SEC]
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   BaseMemoryLib|MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
@@ -426,6 +430,11 @@
   gRaspberryPiTokenSpaceGuid.PcdGicPmuIrq1|0x09
   gRaspberryPiTokenSpaceGuid.PcdGicPmuIrq2|0x09
   gRaspberryPiTokenSpaceGuid.PcdGicPmuIrq3|0x09
+
+  #
+  # Mailbox
+  #
+  gRaspberryPiTokenSpaceGuid.PcdFwMailboxBaseAddress|0x3f00b880
 
   ## Default Terminal Type
   ## 0-PCANSI, 1-VT100, 2-VT00+, 3-UTF8, 4-TTYTERM
@@ -714,6 +723,11 @@
   # RNG
   #
   Silicon/Broadcom/Bcm283x/Drivers/Bcm2835RngDxe/Bcm2835RngDxe.inf
+
+  #
+  # EFI Memory Attribute Protocol Manager
+  #
+  Platform/RaspberryPi/Drivers/MemoryAttributeManagerDxe/MemoryAttributeManagerDxe.inf
 
   #
   # UEFI application (Shell Embedded Boot Loader)
