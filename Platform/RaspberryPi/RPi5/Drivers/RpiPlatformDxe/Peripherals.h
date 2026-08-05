@@ -12,7 +12,14 @@
 #include <Bcm2712PcieControllerSettings.h>
 
 #define PCIE1_SETTINGS_ENABLED_DEFAULT         TRUE
-#define PCIE1_SETTINGS_MAX_LINK_SPEED_DEFAULT  2
+//
+// Gen 3 is beyond what the Raspberry Pi 5 is specified for on the PCIe
+// connector, but it is stable in practice on this hardware and is what was
+// configured by hand here, so default to it rather than making it a manual
+// step after every firmware update. Drop to 2 in the UEFI menu (Device
+// Manager -> Raspberry Pi Configuration -> PCIe) if a device is unhappy.
+//
+#define PCIE1_SETTINGS_MAX_LINK_SPEED_DEFAULT  3
 
 #ifndef VFRCOMPILE
   #include <Protocol/Bcm2712PciePlatform.h>
