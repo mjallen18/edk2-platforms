@@ -1,0 +1,76 @@
+## @file
+#  ARM Platform Library implementation for Qualcomm platforms.
+#
+#  This library provides platform-specific initialization and configuration
+#  for ARM-based Qualcomm platforms, including boot mode detection,
+#  multi-processor core information, and platform PPI list management.
+#
+#  Copyright (c) 2011-2012, ARM Limited. All rights reserved.<BR>
+#  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 1.30
+  BASE_NAME                      = ArmPlatformLib
+  FILE_GUID                      = CB494BAD-23FF-427E-8608-D7E138D3363B
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ArmPlatformLib
+
+[Packages]
+  ArmPkg/ArmPkg.dec
+  ArmPlatformPkg/ArmPlatformPkg.dec
+  QualcommCommonPlatformPkg/QualcommCommonPlatformPkg.dec
+  QualcommCommonSiliconPkg/QualcommCommonSiliconPkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+  QcomPlatformPkg/QcomPlatformPkg.dec
+  QualcommMinPlatformPkg/QualcommMinPlatformPkg.dec
+  QualcommSiliconPkg/QualcommSiliconPkg.dec
+  UefiCpuPkg/UefiCpuPkg.dec
+
+[LibraryClasses]
+  ArmLib
+  ArmMmuLib
+  ChipInfoLib
+  DebugLib
+  PcdLib
+  PerformanceLib
+  PlatformInfoLib
+  RamPartitionTableLib
+  SortLib
+
+[Sources.common]
+  ArmPlatformLib.c
+  ArmPlatformLibMem.c
+  PlatformConfiguration.c
+  PlatformConfiguration.h
+
+[Sources.AArch64]
+  AArch64/ArmPlatformHelper.S
+
+[Pcd]
+  gArmPlatformTokenSpaceGuid.PcdSystemMemoryUefiRegionSize
+  gArmTokenSpaceGuid.PcdSystemMemoryBase
+  gArmTokenSpaceGuid.PcdSystemMemorySize
+
+[FixedPcd]
+  gArmTokenSpaceGuid.PcdFdBaseAddress
+  gArmTokenSpaceGuid.PcdArmPrimaryCoreMask
+  gArmTokenSpaceGuid.PcdArmPrimaryCore
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase
+  gQualcommMinPlatformPkgTokenSpaceGuid.PcdBootDtBase
+  gQualcommMinPlatformPkgTokenSpaceGuid.PcdBootDtSize
+  gQualcommMinPlatformPkgTokenSpaceGuid.PcdIMemCookiesBase
+  gQualcommMinPlatformPkgTokenSpaceGuid.PcdIMemCookiesSize
+  gQualcommSiliconPkgTokenSpaceGuid.PcdSmemBaseAddress
+  gQualcommSiliconPkgTokenSpaceGuid.PcdSmemSize
+  gQualcommMinPlatformPkgTokenSpaceGuid.PcdTrace32DdrBase
+  gQualcommMinPlatformPkgTokenSpaceGuid.PcdTrace32DdrSize
+
+[Ppis]
+  gArmMpCoreInfoPpiGuid
