@@ -685,6 +685,8 @@
   # Listed so that they are compiled even while nothing links against them yet.
   Silicon/RaspberryPi/RpiSiliconPkg/Library/Rp1GpioLib/Rp1GpioLib.inf
   Silicon/RaspberryPi/RpiSiliconPkg/Library/Rp1ClockLib/Rp1ClockLib.inf
+  # Diagnostic tool, built to the ESP rather than into the firmware volume.
+  Silicon/RaspberryPi/RpiSiliconPkg/Application/Rp1Info/Rp1Info.inf
 
   #
   # NVMe boot devices

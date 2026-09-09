@@ -214,6 +214,9 @@ Rp1ClockGetBase (
 
   @param  Base                  The RP1 peripheral base address.
   @param  Desc                  The clock's descriptor.
+  @param  ParentIndex           Receives the raw mux setting. Written even when
+                                the selected input is not modelled, so that a
+                                caller can report which one it was. May be NULL.
   @param  Parent                Receives the selected parent.
 
   @retval EFI_SUCCESS           The parent was resolved.
@@ -226,6 +229,7 @@ EFI_STATUS
 Rp1ClockGetLeafParent (
   IN  EFI_PHYSICAL_ADDRESS   Base,
   IN  CONST RP1_CLOCK_DESC   *Desc,
+  OUT UINT8                  *ParentIndex  OPTIONAL,
   OUT RP1_CLOCK_ID           *Parent
   )
 {
@@ -238,6 +242,10 @@ Rp1ClockGetLeafParent (
     Index = (Ctrl >> RP1_CLK_CTRL_SRC_SHIFT) & Desc->SrcMask;
   } else {
     Index = (Ctrl & RP1_CLK_CTRL_AUXSRC_MASK) >> RP1_CLK_CTRL_AUXSRC_SHIFT;
+  }
+
+  if (ParentIndex != NULL) {
+    *ParentIndex = (UINT8)Index;
   }
 
   if (Index >= Desc->ParentCount) {
@@ -314,7 +322,7 @@ Rp1ClockComputeRate (
   }
 
   if (Desc->Kind == Rp1ClockKindLeaf) {
-    Status = Rp1ClockGetLeafParent (Base, Desc, &Parent);
+    Status = Rp1ClockGetLeafParent (Base, Desc, NULL, &Parent);
     if (EFI_ERROR (Status)) {
       return Status;
     }
@@ -420,6 +428,70 @@ Rp1ClockGetRate (
   }
 
   return Rp1ClockComputeRate (Base, ClockId, 0, Rate);
+}
+
+EFI_STATUS
+EFIAPI
+Rp1ClockGetName (
+  IN  RP1_CLOCK_ID   ClockId,
+  OUT CONST CHAR8    **Name
+  )
+{
+  if ((ClockId >= Rp1ClockIdMax) || (Name == NULL)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  *Name = mRp1Clocks[ClockId].Name;
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
+EFIAPI
+Rp1ClockGetSource (
+  IN  RP1_CLOCK_ID   ClockId,
+  OUT UINT8          *ParentIndex  OPTIONAL,
+  OUT RP1_CLOCK_ID   *Parent
+  )
+{
+  EFI_STATUS            Status;
+  EFI_PHYSICAL_ADDRESS  Base;
+  CONST RP1_CLOCK_DESC  *Desc;
+
+  if ((ClockId >= Rp1ClockIdMax) || (Parent == NULL)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Desc = &mRp1Clocks[ClockId];
+
+  if (Desc->Kind == Rp1ClockKindFixed) {
+    return EFI_UNSUPPORTED;
+  }
+
+  if (ParentIndex != NULL) {
+    *ParentIndex = 0;
+  }
+
+  if (Desc->Kind != Rp1ClockKindLeaf) {
+    *Parent = Desc->Source;
+    return EFI_SUCCESS;
+  }
+
+  Status = Rp1ClockGetBase (&Base);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  Status = Rp1ClockGetLeafParent (Base, Desc, ParentIndex, Parent);
+  if (Status == EFI_UNSUPPORTED) {
+    //
+    // Reporting which input was selected is the whole point of this call, so
+    // an unmodelled one is answered rather than refused.
+    //
+    *Parent = Rp1ClockIdMax;
+    return EFI_SUCCESS;
+  }
+
+  return Status;
 }
 
 EFI_STATUS

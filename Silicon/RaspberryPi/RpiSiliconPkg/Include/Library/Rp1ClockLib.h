@@ -64,6 +64,52 @@ Rp1ClockGetRate (
   );
 
 /**
+  Return a clock's name, for diagnostics.
+
+  @param  ClockId               The clock to name.
+  @param  Name                  Receives a pointer to a static ASCII name.
+
+  @retval EFI_SUCCESS           The name was returned.
+  @retval EFI_INVALID_PARAMETER ClockId is out of range, or Name is NULL.
+
+**/
+EFI_STATUS
+EFIAPI
+Rp1ClockGetName (
+  IN  RP1_CLOCK_ID   ClockId,
+  OUT CONST CHAR8    **Name
+  );
+
+/**
+  Report which source a clock is currently taking.
+
+  Unlike Rp1ClockGetRate (), an unmodelled source is not an error here: Parent
+  is set to Rp1ClockIdMax and ParentIndex still reports the raw mux setting, so
+  a caller can say which input was selected rather than only that the rate is
+  unknown.
+
+  @param  ClockId               The clock to query.
+  @param  ParentIndex           Receives the selected mux input, or zero for a
+                                clock whose source is fixed. May be NULL.
+  @param  Parent                Receives the selected parent, or Rp1ClockIdMax
+                                if that input is not modelled.
+
+  @retval EFI_SUCCESS           The source was returned.
+  @retval EFI_INVALID_PARAMETER ClockId is out of range, or Parent is NULL.
+  @retval EFI_NOT_READY         The RP1 bus driver has not started yet.
+  @retval EFI_UNSUPPORTED       The clock has no source; it is the crystal.
+  @retval EFI_DEVICE_ERROR      The mux holds a value with no input behind it.
+
+**/
+EFI_STATUS
+EFIAPI
+Rp1ClockGetSource (
+  IN  RP1_CLOCK_ID   ClockId,
+  OUT UINT8          *ParentIndex  OPTIONAL,
+  OUT RP1_CLOCK_ID   *Parent
+  );
+
+/**
   Report whether a clock's gate is open.
 
   @param  ClockId               The clock to query.
