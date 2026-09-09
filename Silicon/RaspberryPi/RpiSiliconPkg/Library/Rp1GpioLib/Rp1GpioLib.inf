@@ -1,0 +1,32 @@
+#/** @file
+#
+#  Copyright (c) 2026, mjallen18 <matt.l.jallen@gmail.com>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001A
+  BASE_NAME                      = Rp1GpioLib
+  FILE_GUID                      = 2c0474f1-5fe6-4ca3-9a3c-a66d6ac2ea2d
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  # Boot services are needed to find the RP1 bus, so this cannot be used
+  # before the DXE phase.
+  LIBRARY_CLASS                  = Rp1GpioLib|DXE_DRIVER DXE_RUNTIME_DRIVER UEFI_DRIVER UEFI_APPLICATION
+
+[Sources]
+  Rp1GpioLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/RaspberryPi/RpiSiliconPkg/RpiSiliconPkg.dec
+
+[LibraryClasses]
+  DebugLib
+  IoLib
+  UefiBootServicesTableLib
+
+[Protocols]
+  gRp1BusProtocolGuid                               ## CONSUMES
