@@ -161,20 +161,33 @@ SetupPeripheralVariables (
   VOID
   )
 {
-  EFI_STATUS    Status;
-  UINTN         Size;
+  EFI_STATUS                        Status;
+  UINTN                             Size;
+  BCM2712_PCIE_CONTROLLER_SETTINGS  Settings;
 
-  Size = sizeof (BCM2712_PCIE_CONTROLLER_SETTINGS);
+  //
+  // Read into a scratch copy: GetVariable updates Size to the stored length,
+  // which must not be fed back to SetVariable, and a short read would
+  // otherwise leave the live settings half overwritten.
+  //
+  Size = sizeof (Settings);
   Status = gRT->GetVariable (L"Pcie1Settings",
                   &gRpiPlatformFormSetGuid,
-                  NULL, &Size, &mPciePlatform.Settings[1]);
-  if (EFI_ERROR (Status)) {
-    Status = gRT->SetVariable (
-                    L"Pcie1Settings",
-                    &gRpiPlatformFormSetGuid,
-                    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
-                    Size,
-                    &mPciePlatform.Settings[1]);
-    ASSERT_EFI_ERROR (Status);
+                  NULL, &Size, &Settings);
+  if (!EFI_ERROR (Status) && (Size == sizeof (Settings))) {
+    mPciePlatform.Settings[1] = Settings;
+    return;
   }
+
+  //
+  // Missing, or left over from an older layout - keep the compiled-in
+  // defaults and rewrite the variable to match them.
+  //
+  Status = gRT->SetVariable (
+                  L"Pcie1Settings",
+                  &gRpiPlatformFormSetGuid,
+                  EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
+                  sizeof (mPciePlatform.Settings[1]),
+                  &mPciePlatform.Settings[1]);
+  ASSERT_EFI_ERROR (Status);
 }
