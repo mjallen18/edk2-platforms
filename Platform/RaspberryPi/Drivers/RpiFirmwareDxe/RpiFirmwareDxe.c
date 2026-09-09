@@ -1339,6 +1339,10 @@ RpiFirmwareGetRtc (
   EFI_STATUS                   Status;
   UINT32                       Result;
 
+  if (Value == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
   if (!AcquireSpinLockOrFail (&mMailboxLock)) {
     DEBUG ((DEBUG_ERROR, "%a: failed to acquire spinlock\n", __func__));
     return EFI_DEVICE_ERROR;

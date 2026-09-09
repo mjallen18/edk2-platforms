@@ -18,6 +18,58 @@
 
 #include "Rp1BusDxe.h"
 
+/**
+  Tear down a non-discoverable device that could not be attached as a child.
+
+  @param  DeviceHandle          The handle produced by
+                                RegisterNonDiscoverableMmioDevice ().
+
+**/
+STATIC
+VOID
+EFIAPI
+Rp1BusDestroyNonDiscoverableDevice (
+  IN EFI_HANDLE  DeviceHandle
+  )
+{
+  EFI_STATUS                Status;
+  NON_DISCOVERABLE_DEVICE   *Device;
+  EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
+
+  Status = gBS->HandleProtocol (
+                  DeviceHandle,
+                  &gEdkiiNonDiscoverableDeviceProtocolGuid,
+                  (VOID **)&Device
+                  );
+  if (EFI_ERROR (Status)) {
+    return;
+  }
+
+  Status = gBS->HandleProtocol (
+                  DeviceHandle,
+                  &gEfiDevicePathProtocolGuid,
+                  (VOID **)&DevicePath
+                  );
+  if (EFI_ERROR (Status)) {
+    return;
+  }
+
+  Status = gBS->UninstallMultipleProtocolInterfaces (
+                  DeviceHandle,
+                  &gEdkiiNonDiscoverableDeviceProtocolGuid,
+                  Device,
+                  &gEfiDevicePathProtocolGuid,
+                  DevicePath,
+                  NULL
+                  );
+  if (EFI_ERROR (Status)) {
+    return;
+  }
+
+  FreePool (Device);
+  FreePool (DevicePath);
+}
+
 STATIC
 VOID
 EFIAPI
@@ -72,6 +124,11 @@ Rp1BusRegisterDwc3Controllers (
         "RP1: Failed to open DWC3 by controller. Status=%r\n",
         Status
         ));
+      //
+      // Otherwise the device is left behind with no parent, and Stop () would
+      // never be told to release it.
+      //
+      Rp1BusDestroyNonDiscoverableDevice (DeviceHandle);
       continue;
     }
   }
@@ -273,16 +330,13 @@ Rp1BusDriverBindingStart (
   return EFI_SUCCESS;
 
 Fail:
+  //
+  // No path reaching here has the bus protocol installed, so there is nothing
+  // to uninstall.
+  //
   gBS->CloseProtocol (
          ControllerHandle,
          &gEfiPciIoProtocolGuid,
-         This->DriverBindingHandle,
-         ControllerHandle
-         );
-
-  gBS->UninstallMultipleProtocolInterfaces (
-         ControllerHandle,
-         &gRp1BusProtocolGuid,
          This->DriverBindingHandle,
          ControllerHandle
          );

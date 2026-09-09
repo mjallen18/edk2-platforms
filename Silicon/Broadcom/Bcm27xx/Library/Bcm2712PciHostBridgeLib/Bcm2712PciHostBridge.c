@@ -116,7 +116,18 @@ PcieEncodeInboundSize (
 {
   UINTN  Log2Size;
 
-  Log2Size = HighBitSet64 (Size);
+  if (Size == 0) {
+    return 0;
+  }
+
+  //
+  // The encoding can only express powers of two, so round up - rounding down
+  // would leave part of the region unreachable by inbound traffic.
+  //
+  Log2Size = (UINTN)HighBitSet64 (Size);
+  if ((Size & (Size - 1)) != 0) {
+    Log2Size++;
+  }
 
   if ((Log2Size >= 12) && (Log2Size <= 15)) {
     // 4KB - 32KB
@@ -381,13 +392,18 @@ PcieInitRc (
 
   PcieSetupPhy (Pcie);
 
+  //
+  // RCB_MPS mode is cleared as well as set, since the VPU firmware may have
+  // left it enabled and only RP1 wants it.
+  //
   MmioAndThenOr32 (
     Pcie->Base + PCIE_MISC_MISC_CTRL,
-    ~PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_MASK,
-    PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_128 << PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_SHIFT |
+    ~(PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_MASK |
+      PCIE_MISC_MISC_CTRL_PCIE_RCB_MPS_MODE_MASK),
+    (PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_128 << PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_SHIFT) |
     PCIE_MISC_MISC_CTRL_SCB_ACCESS_EN_MASK |
     PCIE_MISC_MISC_CTRL_CFG_READ_UR_MODE_MASK |
-    Pcie->Settings->RcbMatchMps ? PCIE_MISC_MISC_CTRL_PCIE_RCB_MPS_MODE_MASK : 0
+    (Pcie->Settings->RcbMatchMps ? PCIE_MISC_MISC_CTRL_PCIE_RCB_MPS_MODE_MASK : 0)
     );
 
   //
@@ -472,7 +488,9 @@ PcieInitRc (
   PcieAssertPerst (Pcie, FALSE);
   gBS->Stall (100000);
 
-  PcieWaitForLinkUp (Pcie);
-
-  return EFI_SUCCESS;
+  //
+  // Reported to the caller so a root complex with nothing behind it is not
+  // handed to PciBusDxe to enumerate.
+  //
+  return PcieWaitForLinkUp (Pcie);
 }
