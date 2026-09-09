@@ -18,8 +18,12 @@
 #define BCM2712_GIO_BANK_SIZE               (8 * sizeof (UINT32))
 #define BCM2712_GIO_MAX_PINS_PER_BANK       32
 
-#define BCM2712_GIO_BANK_OFFSET(Pin)        ((Pin / BCM2712_GIO_MAX_PINS_PER_BANK) * BCM2712_GIO_BANK_SIZE)
-#define BCM2712_GIO_REG_BIT(Pin)            (1 << Pin)
+#define BCM2712_GIO_BANK_OFFSET(Pin)        (((Pin) / BCM2712_GIO_MAX_PINS_PER_BANK) * BCM2712_GIO_BANK_SIZE)
+//
+// The bit index is relative to the pin's own bank, so it must be taken
+// modulo the bank width - both GIO and GIO_AON have pins past 31.
+//
+#define BCM2712_GIO_REG_BIT(Pin)            (1u << ((Pin) % BCM2712_GIO_MAX_PINS_PER_BANK))
 
 #define BCM2712_PINCTRL_FSEL_MASK           (BIT3 | BIT2 | BIT1 | BIT0)
 #define BCM2712_PINCTRL_PULL_MASK           (BIT1 | BIT0)
@@ -337,8 +341,8 @@ GpioSetDirection (
 
   GPIOLIB_ASSERT_COMMON_PARAMS (Type, Pin, return);
 
-  GPIOLIB_ASSERT_OR_FAIL (Direction != BCM2712_GPIO_PIN_OUTPUT
-                          || Direction != BCM2712_GPIO_PIN_INPUT,
+  GPIOLIB_ASSERT_OR_FAIL (Direction == BCM2712_GPIO_PIN_OUTPUT
+                          || Direction == BCM2712_GPIO_PIN_INPUT,
                           return);
 
   Controller = &Controllers[Type];
