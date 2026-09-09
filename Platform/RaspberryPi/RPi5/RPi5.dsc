@@ -190,6 +190,7 @@
 
   Bcm2712GpioLib|Silicon/Broadcom/Bcm27xx/Library/Bcm2712GpioLib/Bcm2712GpioLib.inf
   Rp1GpioLib|Silicon/RaspberryPi/RpiSiliconPkg/Library/Rp1GpioLib/Rp1GpioLib.inf
+  Rp1ClockLib|Silicon/RaspberryPi/RpiSiliconPkg/Library/Rp1ClockLib/Rp1ClockLib.inf
 
   PciHostBridgeLib|Silicon/Broadcom/Bcm27xx/Library/Bcm2712PciHostBridgeLib/Bcm2712PciHostBridgeLib.inf
   PciSegmentLib|Silicon/Broadcom/Bcm27xx/Library/Bcm2712PciSegmentLib/PciSegmentLib.inf
@@ -681,8 +682,9 @@
   # RP1 I/O bridge
   #
   Silicon/RaspberryPi/RpiSiliconPkg/Drivers/Rp1BusDxe/Rp1BusDxe.inf
-  # Listed so that it is compiled even while nothing links against it yet.
+  # Listed so that they are compiled even while nothing links against them yet.
   Silicon/RaspberryPi/RpiSiliconPkg/Library/Rp1GpioLib/Rp1GpioLib.inf
+  Silicon/RaspberryPi/RpiSiliconPkg/Library/Rp1ClockLib/Rp1ClockLib.inf
 
   #
   # NVMe boot devices

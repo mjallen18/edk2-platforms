@@ -1,0 +1,33 @@
+#/** @file
+#
+#  Copyright (c) 2026, mjallen18 <matt.l.jallen@gmail.com>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001A
+  BASE_NAME                      = Rp1ClockLib
+  FILE_GUID                      = 690807ff-bf95-4827-a97a-f389c7c0f96d
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  # Boot services are needed to find the RP1 bus, so this cannot be used
+  # before the DXE phase.
+  LIBRARY_CLASS                  = Rp1ClockLib|DXE_DRIVER DXE_RUNTIME_DRIVER UEFI_DRIVER UEFI_APPLICATION
+
+[Sources]
+  Rp1ClockLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/RaspberryPi/RpiSiliconPkg/RpiSiliconPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  IoLib
+  UefiBootServicesTableLib
+
+[Protocols]
+  gRp1BusProtocolGuid                               ## CONSUMES
