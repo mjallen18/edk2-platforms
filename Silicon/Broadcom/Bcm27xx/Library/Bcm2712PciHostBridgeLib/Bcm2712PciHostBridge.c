@@ -381,13 +381,18 @@ PcieInitRc (
 
   PcieSetupPhy (Pcie);
 
+  //
+  // RCB_MPS mode is cleared as well as set, since the VPU firmware may have
+  // left it enabled and only RP1 wants it.
+  //
   MmioAndThenOr32 (
     Pcie->Base + PCIE_MISC_MISC_CTRL,
-    ~PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_MASK,
-    PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_128 << PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_SHIFT |
+    ~(PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_MASK |
+      PCIE_MISC_MISC_CTRL_PCIE_RCB_MPS_MODE_MASK),
+    (PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_128 << PCIE_MISC_MISC_CTRL_MAX_BURST_SIZE_SHIFT) |
     PCIE_MISC_MISC_CTRL_SCB_ACCESS_EN_MASK |
     PCIE_MISC_MISC_CTRL_CFG_READ_UR_MODE_MASK |
-    Pcie->Settings->RcbMatchMps ? PCIE_MISC_MISC_CTRL_PCIE_RCB_MPS_MODE_MASK : 0
+    (Pcie->Settings->RcbMatchMps ? PCIE_MISC_MISC_CTRL_PCIE_RCB_MPS_MODE_MASK : 0)
     );
 
   //
