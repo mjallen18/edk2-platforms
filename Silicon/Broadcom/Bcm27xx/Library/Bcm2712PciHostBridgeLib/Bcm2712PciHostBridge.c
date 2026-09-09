@@ -116,7 +116,18 @@ PcieEncodeInboundSize (
 {
   UINTN  Log2Size;
 
-  Log2Size = HighBitSet64 (Size);
+  if (Size == 0) {
+    return 0;
+  }
+
+  //
+  // The encoding can only express powers of two, so round up - rounding down
+  // would leave part of the region unreachable by inbound traffic.
+  //
+  Log2Size = (UINTN)HighBitSet64 (Size);
+  if ((Size & (Size - 1)) != 0) {
+    Log2Size++;
+  }
 
   if ((Log2Size >= 12) && (Log2Size <= 15)) {
     // 4KB - 32KB
@@ -477,7 +488,9 @@ PcieInitRc (
   PcieAssertPerst (Pcie, FALSE);
   gBS->Stall (100000);
 
-  PcieWaitForLinkUp (Pcie);
-
-  return EFI_SUCCESS;
+  //
+  // Reported to the caller so a root complex with nothing behind it is not
+  // handed to PciBusDxe to enumerate.
+  //
+  return PcieWaitForLinkUp (Pcie);
 }
