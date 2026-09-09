@@ -10,7 +10,7 @@
 #include <Library/BaseMemoryLib.h>
 #include <Library/MemoryAllocationLib.h>
 
-#include <Library/SmemLib.h>
+#include <Library/QualcommSmemLib.h>
 #include "PlatformInfoInternal.h"
 
 /**
@@ -71,7 +71,7 @@ PlatformInfoInit (
   )
 {
   PlatformInfoDrvCtx    *DrvCtx;
-  UINT32                Size;
+  UINTN                 Size;
   PlatformInfoSmemType  *Smem;
   EFI_STATUS            Status;
 
@@ -81,8 +81,14 @@ PlatformInfoInit (
     return EFI_SUCCESS;
   }
 
-  Smem = SmemGetAddr (SmemHwSwBuildId, &Size);
-  if (Smem == NULL) {
+  Status = QualcommSmemLookup (
+             QUALCOMM_SMEM_HOST_COMMON,
+             SMEM_HW_SW_BUILD_ID,
+             QUALCOMM_SMEM_FLAG_NONE,
+             (VOID **)&Smem,
+             &Size
+             );
+  if (EFI_ERROR (Status)) {
     return EFI_NOT_FOUND;
   }
 

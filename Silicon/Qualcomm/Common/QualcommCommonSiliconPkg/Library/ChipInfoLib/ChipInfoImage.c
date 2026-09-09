@@ -12,7 +12,7 @@
 #include <Uefi.h>
 #include <Base.h>
 #include <Library/BaseLib.h>
-#include <Library/SmemLib.h>
+#include <Library/QualcommSmemLib.h>
 #include "ChipInfoImage.h"
 #include <ChipPlatformInfoSmem.h>
 
@@ -33,10 +33,17 @@ ChipInfoGetSocInfo (
   )
 {
   PlatformInfoSmemType  *Smem;
-  UINT32                Size;
+  UINTN                 Size;
+  EFI_STATUS            Status;
 
-  Smem = (PlatformInfoSmemType *)SmemGetAddr (SmemHwSwBuildId, &Size);
-  if ((Smem == NULL) || (Size == 0)) {
+  Status = QualcommSmemLookup (
+             QUALCOMM_SMEM_HOST_COMMON,
+             SMEM_HW_SW_BUILD_ID,
+             QUALCOMM_SMEM_FLAG_NONE,
+             (VOID **)&Smem,
+             &Size
+             );
+  if (EFI_ERROR (Status) || (Size == 0)) {
     return NULL;
   }
 

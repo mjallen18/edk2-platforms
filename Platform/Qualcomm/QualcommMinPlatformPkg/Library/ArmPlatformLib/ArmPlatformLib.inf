@@ -43,6 +43,7 @@
   PlatformInfoLib
   RamPartitionTableLib
   SortLib
+  QualcommSmemLib
 
 [Sources.common]
   ArmPlatformLib.c

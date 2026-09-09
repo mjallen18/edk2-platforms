@@ -25,8 +25,8 @@
 #include <Library/HobLib.h>
 #include <Library/PcdLib.h>
 #include <Library/PlatformInfoLib.h>
+#include <Library/QualcommSmemLib.h>
 #include <Library/RamPartitionTableLib.h>
-#include <Library/SmemLib.h>
 
 #include <PiPei.h>
 #include <Pi/PiHob.h>
@@ -641,7 +641,7 @@ ArmPlatformGetVirtualMemoryMap (
   /* Reserved DDR Region for T32 CMM Script */
   ArmPlatformSetupDebugBuffer ();
 
-  SmemInit ();
+  QualcommSmemInit ();
   DEBUG ((DEBUG_INFO, "SmemInit\n"));
 
   /* Print Chip and Platform Information */
@@ -654,13 +654,13 @@ ArmPlatformGetVirtualMemoryMap (
     goto ExitError;
   }
 
-  Status = RamPartitionInitRamPartitionTableLib();
+  Status = RamPartitionInitRamPartitionTableLib ();
   if (Status != EFI_SUCCESS) {
     DEBUG ((DEBUG_ERROR, "InitRamPartitionTableLib failed\n"));
     goto ExitError;
   }
 
-  DisplayRamPartitionInformation();
+  DisplayRamPartitionInformation ();
 
   /* Try DT-based platform configuration first */
   Status = LoadPlatformConfigFromDeviceTree ();

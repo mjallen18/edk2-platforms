@@ -123,10 +123,6 @@
   gQualcommSiliconPkgTokenSpaceGuid.PcdSmemBaseAddress                    | 0xFFE00000
   gQualcommSiliconPkgTokenSpaceGuid.PcdSmemSize                           | 0x200000
   gQualcommSiliconPkgTokenSpaceGuid.PcdSmemMaxItems                       | 512
-  gQualcommSiliconPkgTokenSpaceGuid.PcdSmemTcsrBase                       | 0x1f00000
-  gQualcommSiliconPkgTokenSpaceGuid.PcdSmemMutexRegBase                   | 0x00040000
-  gQualcommSiliconPkgTokenSpaceGuid.PcdSmemWonceRegBase                   | 0x000c0000
-  gQualcommSiliconPkgTokenSpaceGuid.PcdSmemTargetInfoWonceReg             | 0x00000000
 
   #
   # gQualcommMinPlatformPkgTokenSpaceGuid Overrides

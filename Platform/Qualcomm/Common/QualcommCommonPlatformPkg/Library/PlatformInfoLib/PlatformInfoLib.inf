@@ -31,4 +31,4 @@
 [LibraryClasses]
   BaseMemoryLib
   MemoryAllocationLib
-  SmemLib
+  QualcommSmemLib

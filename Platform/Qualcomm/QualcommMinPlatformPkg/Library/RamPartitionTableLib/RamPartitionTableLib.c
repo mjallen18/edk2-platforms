@@ -15,7 +15,7 @@
 #include <Library/DebugLib.h>
 
 #include <Library/RamPartitionTableLib.h>
-#include <Library/SmemLib.h>
+#include <Library/QualcommSmemLib.h>
 
 #include <MemRegionInfo.h>
 #include <RamPartition.h>
@@ -87,8 +87,15 @@ RamPartitionGetRamPartitionTable (
   BufferSize = 0;
 
   /* Get the RAM partition table */
-  *RamPartitionTable = SmemGetAddr (SmemUsableRamPartitionTable, (UINT32 *)&BufferSize);
-  if (*RamPartitionTable == NULL) {
+  Status = QualcommSmemLookup (
+             QUALCOMM_SMEM_HOST_COMMON,
+             SMEM_USABLE_RAM_PARTITION_TABLE,
+             QUALCOMM_SMEM_FLAG_NONE,
+             RamPartitionTable,
+             (VOID *)&BufferSize
+             );
+
+  if (Status != EFI_SUCCESS) {
     DEBUG ((DEBUG_ERROR, "WARNING: Unable to read memory partition table from SMEM\n"));
     return EFI_NOT_READY;
   }
@@ -129,8 +136,8 @@ RamPartitionGetInstalledSdramMemory (
   UINT32                      Index;
   UINT32                      Version;
 
-  RamPartitionTable  = NULL;
-  Version            = 0;
+  RamPartitionTable = NULL;
+  Version           = 0;
 
   if (MemoryCapacity == NULL) {
     return EFI_INVALID_PARAMETER;
@@ -187,7 +194,6 @@ RamPartitionGetInstalledPhysicalMemory (
   if (MemoryCapacity == NULL) {
     return EFI_INVALID_PARAMETER;
   }
-
 
   Status = RamPartitionGetRamPartitionTable (&RamPartitionTable, &Version);
   if (Status != EFI_SUCCESS) {
@@ -276,7 +282,7 @@ RamPartitionGetLowestPhysicalStartAddress (
 
   SetMem (EntryList, sizeof (EntryList), 0);
   EntryCount = RAM_NUM_PART_ENTRIES;
-  Status = RamPartitionGetRamPartitions (&EntryCount, EntryList);
+  Status     = RamPartitionGetRamPartitions (&EntryCount, EntryList);
   if (Status != EFI_SUCCESS) {
     return Status;
   }
@@ -472,7 +478,6 @@ RamPartitionGetHighestBankBit (
     return EFI_INVALID_PARAMETER;
   }
 
-
   Status = RamPartitionGetRamPartitionTable (&RamPartitionTable, &Version);
   if (Status != EFI_SUCCESS) {
     return Status;
@@ -661,9 +666,9 @@ RamPartitionInitRamPartitionTableLib (
     RAM_PARTITION_TYPE      PartitionType;
     UINT64                  StartAddr;
 
-    PartitionCategory  = Table->RamPartEntry[Index].PartitionCategory;
-    PartitionType      = Table->RamPartEntry[Index].PartitionType;
-    StartAddr          = Table->RamPartEntry[Index].StartAddress;
+    PartitionCategory = Table->RamPartEntry[Index].PartitionCategory;
+    PartitionType     = Table->RamPartEntry[Index].PartitionType;
+    StartAddr         = Table->RamPartEntry[Index].StartAddress;
 
     if ((PartitionType == RamPartitionSysMemory) &&
         (PartitionCategory == RamPartitionSdram))
@@ -684,7 +689,6 @@ RamPartitionInitRamPartitionTableLib (
           continue;
         }
       }
-
 
       TableEntry = &mRamPartitionTable[mRamPartitionTableEntryCount];
       AsciiStrCpyS (TableEntry->Name, MAX_MEM_LABEL_NAME, "RAM Partition");
@@ -762,13 +766,12 @@ RamPartitionGetMinPasrSize (
   UINT32                      Index;
   UINT32                      Version;
 
-  RamPartitionTable  = NULL;
-  Version            = 0;
+  RamPartitionTable = NULL;
+  Version           = 0;
 
   if (MinPasrSize == NULL) {
     return EFI_INVALID_PARAMETER;
   }
-
 
   Status = RamPartitionGetRamPartitionTable (&RamPartitionTable, &Version);
   if (Status != EFI_SUCCESS) {
