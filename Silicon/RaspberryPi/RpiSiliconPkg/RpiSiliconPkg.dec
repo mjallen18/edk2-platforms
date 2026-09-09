@@ -15,6 +15,13 @@
 [Includes]
   Include
 
+[LibraryClasses]
+  ##  @libraryclass  Provides GPIO access for the RP1 south bridge.
+  Rp1GpioLib|Include/Library/Rp1GpioLib.h
+
+  ##  @libraryclass  Provides clock control for the RP1 south bridge.
+  Rp1ClockLib|Include/Library/Rp1ClockLib.h
+
 [Guids]
   gRpiSiliconTokenSpaceGuid = { 0x0b3ce57a, 0xa82b, 0x4ada, { 0x8f, 0xb5, 0x52, 0xc8, 0x72, 0x30, 0x1f, 0xdb } }
 

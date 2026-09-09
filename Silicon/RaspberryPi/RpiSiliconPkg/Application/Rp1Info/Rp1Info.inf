@@ -1,0 +1,33 @@
+#/** @file
+#
+#  Copyright (c) 2026, mjallen18 <matt.l.jallen@gmail.com>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x0001001A
+  BASE_NAME                      = Rp1Info
+  FILE_GUID                      = 7c78af15-751f-4f9e-88cb-952c91992762
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = UefiMain
+
+[Sources]
+  Rp1Info.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/RaspberryPi/RpiSiliconPkg/RpiSiliconPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  Rp1ClockLib
+  Rp1GpioLib
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+
+[Protocols]
+  gEfiShellParametersProtocolGuid                   ## CONSUMES
