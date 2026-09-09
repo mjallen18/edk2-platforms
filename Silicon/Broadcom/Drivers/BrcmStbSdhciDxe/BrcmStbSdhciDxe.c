@@ -28,6 +28,8 @@ SdMmcCapability (
   IN OUT  UINT32                          *BaseClkFreq
   )
 {
+  EFI_STATUS             Status;
+  VOID                   *Interface;
   SD_MMC_HC_SLOT_CAP     *Capability;
 
   if (Slot != 0) {
@@ -35,6 +37,18 @@ SdMmcCapability (
   }
   if (SdMmcHcSlotCapability == NULL) {
     return EFI_INVALID_PARAMETER;
+  }
+
+  //
+  // The override protocol is global to SdMmcPciHcDxe, so make sure this is one
+  // of ours before clobbering an unrelated host controller's capabilities.
+  //
+  Status = gBS->HandleProtocol (
+                  ControllerHandle,
+                  &gBrcmStbSdhciDeviceProtocolGuid,
+                  &Interface);
+  if (EFI_ERROR (Status)) {
+    return EFI_UNSUPPORTED;
   }
 
   Capability = SdMmcHcSlotCapability;
@@ -67,8 +81,9 @@ SdMmcNotifyPhase (
                   &gBrcmStbSdhciDeviceProtocolGuid,
                   (VOID **)&Device);
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: Failed to get protocol. Status=%r\n",
-            __func__, Status));
+    //
+    // Expected for any host controller that is not one of ours.
+    //
     return EFI_UNSUPPORTED;
   }
 
@@ -178,14 +193,18 @@ NotifyProtocolInstall (
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "%a: Failed to get protocol. Status=%r\n",
               __func__, Status));
-      break;
+      continue;
     }
 
+    //
+    // Keep draining the notify queue on failure, otherwise one bad controller
+    // would strand every other one already signalled.
+    //
     Status = StartDevice (Device, Handle);
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "%a: Failed to start device. Status=%r\n",
               __func__, Status));
-      break;
+      continue;
     }
   }
 }
