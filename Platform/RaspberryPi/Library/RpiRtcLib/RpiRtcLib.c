@@ -8,7 +8,6 @@
 
 #include <PiDxe.h>
 
-#include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/RealTimeClockLib.h>
 #include <Library/TimeBaseLib.h>
@@ -19,125 +18,12 @@
 
 STATIC RASPBERRY_PI_FIRMWARE_PROTOCOL *mFwProtocol;
 
-STATIC CONST CHAR16 mTimeZoneVariableName[] = L"RtcTimeZone";
-STATIC CONST CHAR16 mDaylightVariableName[] = L"RtcDaylight";
-
-//
-// The VideoCore RTC counts plain seconds and has no notion of a time zone, so
-// the local offset lives in non-volatile storage instead. It is cached here
-// because GetTime() may not read its own output buffer to recover it.
-//
-STATIC INT16  mTimeZone = EFI_UNSPECIFIED_TIMEZONE;
-STATIC UINT8  mDaylight = 0;
-
-STATIC
-VOID
-EFIAPI
-OffsetTimeZoneEpoch (
-  IN      INT16       TimeZone,
-  IN      UINT8       Daylight,
-  IN OUT  UINT32      *EpochSeconds,
-  IN      BOOLEAN     Add
-  )
-{
-  //
-  // Adjust for the correct time zone
-  // The timezone setting also reflects the DST setting of the clock
-  //
-  if (TimeZone != EFI_UNSPECIFIED_TIMEZONE) {
-    *EpochSeconds += (Add ? 1 : -1) * TimeZone * SEC_PER_MIN;
-  } else if ((Daylight & EFI_TIME_IN_DAYLIGHT) == EFI_TIME_IN_DAYLIGHT) {
-    // Convert to adjusted time, i.e. spring forwards one hour
-    *EpochSeconds += (Add ? 1 : -1) * SEC_PER_HOUR;
-  }
-}
-
-/**
-  Load the stored time zone and daylight settings into the local cache.
-
-  A missing or corrupt variable simply leaves the default (UTC) in place.
-
-**/
-STATIC
-VOID
-EFIAPI
-LoadTimeSettings (
-  VOID
-  )
-{
-  EFI_STATUS  Status;
-  UINTN       Size;
-  INT16       TimeZone;
-  UINT8       Daylight;
-
-  Size = sizeof (TimeZone);
-  Status = EfiGetVariable ((CHAR16 *)mTimeZoneVariableName,
-             &gEfiCallerIdGuid, NULL, &Size, (VOID *)&TimeZone);
-  if (!EFI_ERROR (Status) && (Size == sizeof (TimeZone))
-      && IsValidTimeZone (TimeZone)) {
-    mTimeZone = TimeZone;
-  }
-
-  Size = sizeof (Daylight);
-  Status = EfiGetVariable ((CHAR16 *)mDaylightVariableName,
-             &gEfiCallerIdGuid, NULL, &Size, (VOID *)&Daylight);
-  if (!EFI_ERROR (Status) && (Size == sizeof (Daylight))
-      && IsValidDaylight (Daylight)) {
-    mDaylight = Daylight;
-  }
-}
-
-/**
-  Persist the time zone and daylight settings and update the local cache.
-
-  @param  TimeZone              The time zone to store.
-  @param  Daylight              The daylight setting to store.
-
-  @retval EFI_SUCCESS           The settings were stored.
-  @retval Others                The settings could not be stored.
-
-**/
-STATIC
-EFI_STATUS
-EFIAPI
-SaveTimeSettings (
-  IN  INT16   TimeZone,
-  IN  UINT8   Daylight
-  )
-{
-  EFI_STATUS  Status;
-
-  //
-  // Update the cache first: the clock has already been written using this
-  // offset, so reads must agree with it even if the variable store fails.
-  //
-  mTimeZone = TimeZone;
-  mDaylight = Daylight;
-
-  Status = EfiSetVariable ((CHAR16 *)mTimeZoneVariableName,
-             &gEfiCallerIdGuid,
-             EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
-             EFI_VARIABLE_RUNTIME_ACCESS,
-             sizeof (TimeZone), (VOID *)&TimeZone);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: Failed to store %s. Status=%r\n",
-            __func__, mTimeZoneVariableName, Status));
-    return Status;
-  }
-
-  Status = EfiSetVariable ((CHAR16 *)mDaylightVariableName,
-             &gEfiCallerIdGuid,
-             EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
-             EFI_VARIABLE_RUNTIME_ACCESS,
-             sizeof (Daylight), (VOID *)&Daylight);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: Failed to store %s. Status=%r\n",
-            __func__, mDaylightVariableName, Status));
-    return Status;
-  }
-
-  return EFI_SUCCESS;
-}
+// Store the calendar time supplied by the OS, like a PC RTC. TimeZone and
+// Daylight are metadata managed by RealTimeClockRuntimeDxe, not an instruction
+// to shift the clock a second time. In particular, runtime variable updates
+// cannot be persisted by our boot-services-only file-backed variable store.
+// Losing that metadata at reboot must not change the stored calendar time.
+// No country, UTC offset, or daylight-saving rule is selected here.
 
 /**
   Returns the current time and date information, and the time-keeping capabilities
@@ -172,19 +58,13 @@ LibGetTime (
     return Status;
   }
 
-  OffsetTimeZoneEpoch (mTimeZone, mDaylight, &EpochSeconds, TRUE);
-
   EpochToEfiTime (EpochSeconds, Time);
-
-  //
-  // EpochToEfiTime leaves these untouched.
-  //
-  Time->TimeZone = mTimeZone;
-  Time->Daylight = mDaylight;
+  Time->Pad1 = 0;
+  Time->Pad2 = 0;
 
   if (Capabilities != NULL) {
-    Capabilities->Resolution = 1;     // 1 Hz
-    Capabilities->Accuracy   = 0;     // Unknown
+    Capabilities->Resolution = 1;
+    Capabilities->Accuracy = 0; // Hardware accuracy is not reported by mailbox.
     Capabilities->SetsToZero = FALSE;
   }
 
@@ -208,26 +88,27 @@ LibSetTime (
   )
 {
   EFI_STATUS  Status;
-  UINT32      EpochSeconds;
+  UINTN       EpochSeconds;
 
   if (Time == NULL || !IsTimeValid (Time)) {
     return EFI_INVALID_PARAMETER;
   }
+  if (Time->Year < 1970) {
+    return EFI_UNSUPPORTED;
+  }
 
-  EpochSeconds = (UINT32)EfiTimeToEpoch (Time);
+  // The mailbox accepts a 32-bit seconds counter; never silently wrap a date.
+  EpochSeconds = EfiTimeToEpoch (Time);
+  if (EpochSeconds > MAX_UINT32) {
+    return EFI_UNSUPPORTED;
+  }
 
-  OffsetTimeZoneEpoch (Time->TimeZone, Time->Daylight, &EpochSeconds, FALSE);
-
-  Status = mFwProtocol->SetRtc (RpiRtcTime, EpochSeconds);
+  Status = mFwProtocol->SetRtc (RpiRtcTime, (UINT32)EpochSeconds);
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
-  //
-  // Only commit the offset once the clock itself has been updated, so that a
-  // failed write cannot leave the two disagreeing.
-  //
-  return SaveTimeSettings (Time->TimeZone, Time->Daylight);
+  return EFI_SUCCESS;
 }
 
 /**
@@ -285,12 +166,7 @@ LibGetWakeupTime (
     return Status;
   }
 
-  OffsetTimeZoneEpoch (mTimeZone, mDaylight, &EpochSeconds, TRUE);
-
   EpochToEfiTime (EpochSeconds, Time);
-
-  Time->TimeZone = mTimeZone;
-  Time->Daylight = mDaylight;
 
   return EFI_SUCCESS;
 }
@@ -316,18 +192,22 @@ LibSetWakeupTime (
   )
 {
   EFI_STATUS  Status;
-  UINT32      EpochSeconds;
+  UINTN       EpochSeconds;
 
   if (Enabled) {
     if (Time == NULL || !IsTimeValid (Time)) {
       return EFI_INVALID_PARAMETER;
     }
+    if (Time->Year < 1970) {
+      return EFI_UNSUPPORTED;
+    }
 
-    EpochSeconds = (UINT32)EfiTimeToEpoch (Time);
+    EpochSeconds = EfiTimeToEpoch (Time);
+    if (EpochSeconds > MAX_UINT32) {
+      return EFI_UNSUPPORTED;
+    }
 
-    OffsetTimeZoneEpoch (Time->TimeZone, Time->Daylight, &EpochSeconds, FALSE);
-
-    Status = mFwProtocol->SetRtc (RpiRtcAlarm, EpochSeconds);
+    Status = mFwProtocol->SetRtc (RpiRtcAlarm, (UINT32)EpochSeconds);
     if (EFI_ERROR (Status)) {
       return Status;
     }
@@ -379,7 +259,7 @@ LibRtcInitialize (
   )
 {
   EFI_STATUS  Status;
-  EFI_TIME    Time;
+  EFI_TIME    Time = { 0 };
   EFI_EVENT   VirtualAddressChangeEvent;
 
   Status = gBS->LocateProtocol (
@@ -403,22 +283,18 @@ LibRtcInitialize (
     return Status;
   }
 
-  LoadTimeSettings ();
-
   //
-  // Initial RTC time starts off at Epoch = 0, which is out
-  // of UEFI's bounds. Update it to the firmware build time.
+  // An unprogrammed RTC starts at Epoch = 0. Seed only that sentinel or an
+  // invalid calendar, never a valid clock merely because its metadata was lost.
   //
-  ZeroMem (&Time, sizeof (Time));
+  Time.TimeZone = EFI_UNSPECIFIED_TIMEZONE;
   Status = LibGetTime (&Time, NULL);
   if (EFI_ERROR(Status)) {
     return Status;
   }
 
-  if (!IsTimeValid (&Time)) {
+  if (!IsTimeValid (&Time) || EfiTimeToEpoch (&Time) == 0) {
     EpochToEfiTime (BUILD_EPOCH, &Time);
-    Time.TimeZone = mTimeZone;
-    Time.Daylight = mDaylight;
     Status = LibSetTime (&Time);
     if (EFI_ERROR(Status)) {
       return Status;

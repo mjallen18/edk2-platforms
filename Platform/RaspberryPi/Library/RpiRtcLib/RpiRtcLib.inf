@@ -24,7 +24,6 @@
   Platform/RaspberryPi/RaspberryPi.dec
 
 [LibraryClasses]
-  BaseMemoryLib
   DebugLib
   TimeBaseLib
   UefiBootServicesTableLib
