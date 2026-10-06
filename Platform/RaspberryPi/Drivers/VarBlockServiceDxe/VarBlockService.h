@@ -33,6 +33,7 @@ typedef struct {
   EFI_DEVICE_PATH_PROTOCOL   *Device;
   CHAR16                     *MappedFile;
   BOOLEAN                    Dirty;
+  UINTN                      Generation;
 } EFI_FW_VOL_INSTANCE;
 
 extern EFI_FW_VOL_INSTANCE *mFvInstance;
@@ -203,9 +204,23 @@ FileOpen (
   IN  UINT64 OpenMode
   );
 
-VOID
+EFI_STATUS
 FileClose (
   IN  EFI_FILE_PROTOCOL *File
   );
+
+EFI_STATUS
+FileVerify (
+  IN EFI_FILE_PROTOCOL *File,
+  IN UINTN             Offset,
+  IN UINTN             Buffer,
+  IN UINTN             Size
+  );
+
+EFI_STATUS
+CaptureBootVariableStore (VOID);
+
+EFI_STATUS
+VerifyBootVariableStore (IN EFI_FILE_PROTOCOL *File);
 
 #endif

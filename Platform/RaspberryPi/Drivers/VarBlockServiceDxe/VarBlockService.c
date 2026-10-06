@@ -94,6 +94,7 @@ VarStoreWrite (
   )
 {
   CopyMem ((VOID*)Address, Buffer, *NumBytes);
+  mFvInstance->Generation++;
   mFvInstance->Dirty = TRUE;
 
   return EFI_SUCCESS;
@@ -107,6 +108,7 @@ VarStoreErase (
   )
 {
   SetMem ((VOID*)Address, LbaLength, 0xff);
+  mFvInstance->Generation++;
   mFvInstance->Dirty = TRUE;
 
   return EFI_SUCCESS;
@@ -847,6 +849,12 @@ FvbInitialize (
    * Should I parse config.txt instead and find the real name?
    */
   mFvInstance->MappedFile = L"RPI_EFI.FD";
+
+  // Capture before initialization or variable services modify the RAM image.
+  Status = CaptureBootVariableStore ();
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
 
   Status = ValidateFvHeader (mFvInstance->VolumeHeader);
   if (!EFI_ERROR (Status)) {

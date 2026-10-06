@@ -11,6 +11,7 @@
 #include "VarBlockService.h"
 
 #include <Protocol/ResetNotification.h>
+#include <Library/MemoryAllocationLib.h>
 
 //
 // Minimum delay to enact before reset, when variables are dirty (in μs).
@@ -25,6 +26,37 @@
 #endif
 
 VOID *mSFSRegistration;
+STATIC VOID     *mBootVariableStore;
+STATIC BOOLEAN  mBootServicesGone;
+STATIC BOOLEAN  mSaving;
+STATIC BOOLEAN  mSaveErrorShown;
+
+EFI_STATUS
+CaptureBootVariableStore (VOID)
+{
+  mBootVariableStore = AllocateCopyPool (mFvInstance->FvLength, (VOID *)mFvInstance->FvBase);
+  return mBootVariableStore == NULL ? EFI_OUT_OF_RESOURCES : EFI_SUCCESS;
+}
+
+EFI_STATUS
+VerifyBootVariableStore (IN EFI_FILE_PROTOCOL *File)
+{
+  if (mBootVariableStore == NULL) {
+    return EFI_NOT_READY;
+  }
+  return FileVerify (File, mFvInstance->Offset, (UINTN)mBootVariableStore, mFvInstance->FvLength);
+}
+
+STATIC
+VOID
+ReportSaveFailure (VOID)
+{
+  if (!mSaveErrorShown && gST->ConOut != NULL) {
+    gST->ConOut->OutputString (gST->ConOut,
+      L"\r\nWARNING: UEFI settings are not saved. Keep the firmware boot media connected and writable.\r\n");
+    mSaveErrorShown = TRUE;
+  }
+}
 
 
 VOID
@@ -141,6 +173,7 @@ DoDump (
   )
 {
   EFI_STATUS Status;
+  EFI_STATUS CloseStatus;
   EFI_FILE_PROTOCOL *File;
 
   Status = FileOpen (Device,
@@ -156,7 +189,10 @@ DoDump (
              mFvInstance->Offset,
              mFvInstance->FvBase,
              mFvInstance->FvLength);
-  FileClose (File);
+  CloseStatus = FileClose (File);
+  if (!EFI_ERROR (Status)) {
+    Status = CloseStatus;
+  }
   return Status;
 }
 
@@ -169,21 +205,30 @@ DumpVars (
 {
   EFI_STATUS Status;
   RETURN_STATUS PcdStatus;
+  UINTN         Generation;
+
+  // Filesystem protocols are boot services only. A Windows runtime reset must
+  // never dereference gBS, the saved device path, or the filesystem handles.
+  if (mBootServicesGone || EfiAtRuntime () || mSaving) {
+    return;
+  }
+
+  if (!mFvInstance->Dirty) {
+    return;
+  }
 
   if (mFvInstance->Device == NULL) {
     DEBUG ((DEBUG_INFO, "Variable store not found?\n"));
     return;
   }
 
-  if (!mFvInstance->Dirty) {
-    DEBUG ((DEBUG_INFO, "Variables not dirty, not dumping!\n"));
-    return;
-  }
-
+  mSaving = TRUE;
+  Generation = mFvInstance->Generation;
   Status = DoDump (mFvInstance->Device);
+  mSaving = FALSE;
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "Couldn't dump '%s'\n", mFvInstance->MappedFile));
-    ASSERT_EFI_ERROR (Status);
+    ReportSaveFailure ();
     return;
   }
 
@@ -199,7 +244,20 @@ DumpVars (
     ASSERT_RETURN_ERROR (PcdStatus);
   }
 
-  mFvInstance->Dirty = FALSE;
+  mFvInstance->Dirty = (Generation != mFvInstance->Generation);
+  mSaveErrorShown = FALSE;
+}
+
+STATIC
+VOID
+EFIAPI
+StopFilePersistence (
+  IN EFI_EVENT Event,
+  IN VOID      *Context
+  )
+{
+  // Do not perform file I/O here: ExitBootServices has stricter constraints.
+  mBootServicesGone = TRUE;
 }
 
 STATIC
@@ -224,6 +282,9 @@ DumpVarsOnReset (
   )
 {
   DumpVars ();
+  if (!mBootServicesGone && !EfiAtRuntime () && mFvInstance->Dirty) {
+    ReportSaveFailure ();
+  }
 }
 
 VOID
@@ -253,6 +314,9 @@ ReadyToBootHandler (
   ASSERT_EFI_ERROR (Status);
 
   DumpVars ();
+  if (mFvInstance->Dirty) {
+    ReportSaveFailure ();
+  }
   Status = gBS->CloseEvent (Event);
   ASSERT_EFI_ERROR (Status);
 }
@@ -265,6 +329,8 @@ InstallDumpVarEventHandlers (
 {
   EFI_STATUS                       Status;
   EFI_EVENT                        ReadyToBootEvent;
+  EFI_EVENT                        SaveTimer;
+  EFI_EVENT                        ExitBootEvent;
   EFI_RESET_NOTIFICATION_PROTOCOL  *ResetNotify;
 
   Status = gBS->CreateEventEx (
@@ -275,6 +341,18 @@ InstallDumpVarEventHandlers (
                   &gEfiEventReadyToBootGuid,
                   &ReadyToBootEvent
                 );
+  ASSERT_EFI_ERROR (Status);
+
+  // The callback runs only after higher-TPL variable updates have finished.
+  // Save submitted menu settings even before ReadyToBoot or a reset callback.
+  Status = gBS->CreateEvent (EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
+                  DumpVarsOnEvent, NULL, &SaveTimer);
+  if (!EFI_ERROR (Status)) {
+    Status = gBS->SetTimer (SaveTimer, TimerPeriodic, 2 * 10000000ULL);
+  }
+  ASSERT_EFI_ERROR (Status);
+  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_NOTIFY,
+                  StopFilePersistence, NULL, &gEfiEventExitBootServicesGuid, &ExitBootEvent);
   ASSERT_EFI_ERROR (Status);
 
   Status = gBS->LocateProtocol (
@@ -305,6 +383,9 @@ OnSimpleFileSystemInstall (
   EFI_HANDLE Handle;
   EFI_DEVICE_PATH_PROTOCOL *Device;
 
+  if (mBootServicesGone || EfiAtRuntime ()) {
+    return;
+  }
   if ((mFvInstance->Device != NULL) &&
       !EFI_ERROR (CheckStoreExists (mFvInstance->Device))) {
     //
@@ -327,17 +408,12 @@ OnSimpleFileSystemInstall (
       break;
     }
 
-    ASSERT_EFI_ERROR (Status);
+    if (EFI_ERROR (Status)) {
+      break;
+    }
 
     Status = CheckStore (Handle, &Device);
     if (EFI_ERROR (Status)) {
-      continue;
-    }
-
-    Status = DoDump (Device);
-    if (EFI_ERROR (Status)) {
-      DEBUG ((DEBUG_ERROR, "Couldn't update '%s'\n", mFvInstance->MappedFile));
-      ASSERT_EFI_ERROR (Status);
       continue;
     }
 
@@ -347,6 +423,8 @@ OnSimpleFileSystemInstall (
 
     DEBUG ((DEBUG_INFO, "Found variable store!\n"));
     mFvInstance->Device = Device;
+    // Discovery is read-only. Only a dirty store needs a checked write.
+    DumpVars ();
     break;
   }
 }

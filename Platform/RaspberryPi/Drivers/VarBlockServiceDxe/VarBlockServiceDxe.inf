@@ -55,6 +55,7 @@
   gEdkiiNvVarStoreFormattedGuid			## PRODUCES ## PROTOCOL
   gEfiEventVirtualAddressChangeGuid
   gEfiEventReadyToBootGuid
+  gEfiEventExitBootServicesGuid
 
 [Protocols]
   gEfiSimpleFileSystemProtocolGuid
@@ -75,6 +76,8 @@
   gRaspberryPiTokenSpaceGuid.PcdFirmwareBlockSize
   gArmTokenSpaceGuid.PcdFdBaseAddress
   gArmTokenSpaceGuid.PcdFdSize
+  gArmTokenSpaceGuid.PcdFvBaseAddress
+  gArmTokenSpaceGuid.PcdFvSize
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase
