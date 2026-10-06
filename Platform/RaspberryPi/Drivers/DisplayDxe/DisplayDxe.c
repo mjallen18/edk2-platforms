@@ -590,7 +590,10 @@ DriverStart (
 
   // Both set the mode and initialize current mode information.
   gDisplayProto.Mode->MaxMode = mLastMode + 1;
-  DisplaySetMode (&gDisplayProto, 0);
+  Status = DisplaySetMode (&gDisplayProto, 0);
+  if (EFI_ERROR (Status)) {
+    goto Done;
+  }
 
   Status = gBS->InstallMultipleProtocolInterfaces (
     &Controller, &gEfiGraphicsOutputProtocolGuid,
