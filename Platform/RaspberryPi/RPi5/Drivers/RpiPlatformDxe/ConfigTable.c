@@ -445,7 +445,6 @@ FindPeImageBase (
 }
 
 STATIC CHAR8 mWinLoadNameStr[] = "winload";
-STATIC CHAR8 mFreeLdrNameStr[] = "FreeLoader";
 #define PDB_NAME_MAX_LENGTH   256
 
 STATIC
@@ -475,55 +474,6 @@ IsPeImageWinLoader (
   return FALSE;
 }
 
-//
-// FreeLoader leaves the CodeView PDB name empty. Match its product name in the
-// loaded image instead.
-//
-STATIC
-BOOLEAN
-EFIAPI
-IsPeImageFreeLoader (
-  IN VOID *PeImage
-  )
-{
-  EFI_IMAGE_DOS_HEADER                 *DosHdr;
-  EFI_IMAGE_OPTIONAL_HEADER_PTR_UNION  Hdr;
-  CONST UINT8                          *Image;
-  UINT32                               SizeOfImage;
-  UINTN                                NameLen;
-  UINTN                                Index;
-
-  DosHdr = (EFI_IMAGE_DOS_HEADER *)PeImage;
-  if (DosHdr->e_magic != EFI_IMAGE_DOS_SIGNATURE) {
-    return FALSE;
-  }
-
-  Hdr.Pe32 = (EFI_IMAGE_NT_HEADERS32 *)((UINT8 *)PeImage + DosHdr->e_lfanew);
-  if (Hdr.Pe32->Signature != EFI_IMAGE_NT_SIGNATURE) {
-    return FALSE;
-  }
-
-  if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
-    SizeOfImage = Hdr.Pe32Plus->OptionalHeader.SizeOfImage;
-  } else {
-    SizeOfImage = Hdr.Pe32->OptionalHeader.SizeOfImage;
-  }
-
-  NameLen = sizeof (mFreeLdrNameStr) - sizeof (CHAR8);
-  if (SizeOfImage < NameLen) {
-    return FALSE;
-  }
-
-  Image = (CONST UINT8 *)PeImage;
-  for (Index = 0; Index <= SizeOfImage - NameLen; Index++) {
-    if (CompareMem (Image + Index, mFreeLdrNameStr, NameLen) == 0) {
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
-
 STATIC
 EFI_STATUS
 EFIAPI
@@ -544,8 +494,7 @@ AcpiExitBootServicesHook (
 
   OsLoaderAddress = FindPeImageBase (ReturnAddress);
   if (OsLoaderAddress > 0) {
-    if (IsPeImageWinLoader ((VOID *)OsLoaderAddress) ||
-        IsPeImageFreeLoader ((VOID *)OsLoaderAddress)) {
+    if (IsPeImageWinLoader ((VOID *)OsLoaderAddress)) {
       OsType = AcpiOsWindows;
     }
   }
