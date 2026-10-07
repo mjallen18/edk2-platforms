@@ -15,6 +15,9 @@
 #define BCM2712_LEGACY_BUS_BASE                           0x107c000000
 #define BCM2712_LEGACY_BUS_LENGTH                         0x4000000
 
+#define BCM2712_FW_MAILBOX_BASE                           0x107c013880
+#define BCM2712_FW_MAILBOX_LENGTH                         0x40
+
 #define BCM2712_SOC_STEPPING_BASE                         0x1001504004
 #define BCM2712_SOC_STEPPING_ID                           0x2712
 #define BCM2712_SOC_STEPPING_MASK                         0xFF
