@@ -81,7 +81,13 @@ Device (ETH0) {
       // the RP1-specific macb configuration. The GEM is clocked and its PHY
       // reset by firmware; the MAC is programmed into the station address.
       Package () { "compatible", "raspberrypi,rp1-gem" },
-      Package () { "phy-mode", "rgmii-id" }
+      Package () { "phy-mode", "rgmii-id" },
+      // ACPI has no clock framework, so publish the rates the OS driver would
+      // otherwise read from the clock tree (RP1_CLK_SYS, 200 MHz, feeds pclk
+      // and hclk and sets the MDC divider; RP1_CLK_ETH_TSU is 50 MHz).
+      Package () { "pclk-frequency", 200000000 },
+      Package () { "hclk-frequency", 200000000 },
+      Package () { "tsu-clock-frequency", 50000000 }
     }
   })
 }
