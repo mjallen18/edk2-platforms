@@ -556,6 +556,31 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RPIFDN", "RPI5    ", 2)
       }
     } // Device (AONI)
 
+    // Power management block, exposed for its watchdog only. Linux binds the
+    // "brcm,bcm2835-pm-wdt" compatible to the bcm2835-pm MFD driver, which
+    // registers the watchdog as a child; the ASB registers (power domains) are
+    // deliberately not described.
+    Device (WDT0) {
+      Name (_HID, "PRP0001")
+      Name (_UID, 0x0)
+      Name (_CCA, 0x0)
+
+      Method (_CRS, 0x0, Serialized) {
+        Name (RBUF, ResourceTemplate () {
+          QWORDMEMORY_BUF (00, ResourceConsumer)
+        })
+        QWORD_SET (00, BCM2712_PM_BASE, BCM2712_PM_LENGTH, 0)
+        Return (RBUF)
+      }
+
+      Name (_DSD, Package () {
+        ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+        Package () {
+          Package () { "compatible", "brcm,bcm2835-pm-wdt" }
+        }
+      })
+    } // Device (WDT0)
+
     // HDMI0 MAI audio engine and DMA40 channel 6.
     Device (AUD0) {
       Name (_HID, "RPI0006")
