@@ -8,12 +8,14 @@
 
 #include <Uefi.h>
 #include <Guid/RpiPlatformFormSetGuid.h>
+#include <IndustryStandard/RpiMbox.h>
 #include <Library/BoardInfoLib.h>
 #include <Library/BoardRevisionHelperLib.h>
 #include <Library/DebugLib.h>
 #include <Library/DevicePathLib.h>
 #include <Library/HiiLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Protocol/RpiFirmware.h>
 
 #include "ConfigTable.h"
 #include "Peripherals.h"
@@ -109,6 +111,39 @@ ApplyVariables (
   ApplyPeripheralVariables ();
 }
 
+STATIC
+VOID
+SetCpuClockToMax (
+  VOID
+  )
+{
+  EFI_STATUS                      Status;
+  RASPBERRY_PI_FIRMWARE_PROTOCOL  *Firmware;
+  UINT32                          Rate;
+
+  Status = gBS->LocateProtocol (
+                  &gRaspberryPiFirmwareProtocolGuid,
+                  NULL,
+                  (VOID **)&Firmware
+                  );
+  if (EFI_ERROR (Status)) {
+    return;
+  }
+
+  //
+  // The VideoCore hands over with the cores at their minimum clock (1.5 GHz)
+  // and expects the OS to scale them. Linux does that over this mailbox on a
+  // devicetree boot, but nothing does under ACPI, so run at the configured
+  // maximum (arm_freq in config.txt).
+  //
+  Status = Firmware->GetMaxClockRate (RPI_MBOX_CLOCK_RATE_ARM, &Rate);
+  if (!EFI_ERROR (Status) && (Rate != 0)) {
+    Status = Firmware->SetClockRate (RPI_MBOX_CLOCK_RATE_ARM, Rate, TRUE);
+  }
+
+  DEBUG ((DEBUG_INFO, "%a: Set ARM clock to maximum: %r\n", __func__, Status));
+}
+
 EFI_STATUS
 EFIAPI
 RpiPlatformDxeEntryPoint (
@@ -129,6 +164,7 @@ RpiPlatformDxeEntryPoint (
 
   SetupVariables ();
   ApplyVariables ();
+  SetCpuClockToMax ();
 
   SetupPeripherals ();
 
