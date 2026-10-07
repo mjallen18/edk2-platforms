@@ -163,6 +163,26 @@ Rp1BusEnableInterrupts (
     Rp1Data->PeripheralBase + RP1_PCIE_REG_SET + RP1_PCIE_MSIX_CFG (RP1_INT_ETH),
     RP1_PCIE_MSIX_CFG_ENABLE
     );
+
+  //
+  // 40-pin header: I2C1 and the three GPIO banks.
+  //
+  MmioWrite32 (
+    Rp1Data->PeripheralBase + RP1_PCIE_REG_SET + RP1_PCIE_MSIX_CFG (RP1_INT_I2C1),
+    RP1_PCIE_MSIX_CFG_ENABLE
+    );
+  MmioWrite32 (
+    Rp1Data->PeripheralBase + RP1_PCIE_REG_SET + RP1_PCIE_MSIX_CFG (RP1_INT_IO_BANK0),
+    RP1_PCIE_MSIX_CFG_ENABLE
+    );
+  MmioWrite32 (
+    Rp1Data->PeripheralBase + RP1_PCIE_REG_SET + RP1_PCIE_MSIX_CFG (RP1_INT_IO_BANK1),
+    RP1_PCIE_MSIX_CFG_ENABLE
+    );
+  MmioWrite32 (
+    Rp1Data->PeripheralBase + RP1_PCIE_REG_SET + RP1_PCIE_MSIX_CFG (RP1_INT_IO_BANK2),
+    RP1_PCIE_MSIX_CFG_ENABLE
+    );
 }
 
 //
@@ -193,6 +213,57 @@ Rp1BusEnableInterrupts (
 #define RP1_PAD_PULL_MASK         0x0000000c
 #define RP1_PAD_IN_ENABLE         0x00000040
 #define RP1_PAD_OUT_DISABLE       0x00000080
+#define RP1_PAD_DRIVE_MASK        0x00000030
+#define RP1_PAD_DRIVE_12MA        0x00000030
+#define RP1_PAD_PULL_UP           0x00000008
+
+//
+// 40-pin header pin muxing. Linux selects these through pinctrl from the
+// devicetree, but nothing does under ACPI, so route I2C1 (GPIO2 SDA, GPIO3
+// SCL: function 3) here, with the 12 mA drive and pull-up the upstream RP1 I2C
+// pin states use. Other header pins are left to the OS (GPIO, via pinctrl).
+//
+#define RP1_GPIO_FSEL_I2C1        0x03
+#define RP1_I2C1_SDA_PIN          2
+#define RP1_I2C1_SCL_PIN          3
+
+STATIC
+VOID
+EFIAPI
+Rp1BusSetBank0PinFunction (
+  IN RP1_BUS_DATA  *Rp1Data,
+  IN UINT32        Pin,
+  IN UINT32        Function
+  )
+{
+  EFI_PHYSICAL_ADDRESS  Base;
+  UINT32                Ctrl;
+  UINT32                Pad;
+
+  Base = Rp1Data->PeripheralBase;
+
+  Pad  = MmioRead32 (Base + RP1_PADS_BANK0_BASE + 0x04 + (Pin * 4));
+  Pad &= ~(RP1_PAD_PULL_MASK | RP1_PAD_DRIVE_MASK | RP1_PAD_OUT_DISABLE);
+  Pad |= RP1_PAD_IN_ENABLE | RP1_PAD_DRIVE_12MA | RP1_PAD_PULL_UP;
+  MmioWrite32 (Base + RP1_PADS_BANK0_BASE + 0x04 + (Pin * 4), Pad);
+
+  Ctrl  = MmioRead32 (Base + RP1_IO_BANK0_BASE + 0x04 + (Pin * 8));
+  Ctrl &= ~(RP1_GPIO_FUNCSEL_MASK | RP1_GPIO_OUTOVER_MASK |
+            RP1_GPIO_OEOVER_MASK | RP1_GPIO_INOVER_MASK);
+  Ctrl |= Function;
+  MmioWrite32 (Base + RP1_IO_BANK0_BASE + 0x04 + (Pin * 8), Ctrl);
+}
+
+STATIC
+VOID
+EFIAPI
+Rp1BusHeaderPinmux (
+  IN RP1_BUS_DATA  *Rp1Data
+  )
+{
+  Rp1BusSetBank0PinFunction (Rp1Data, RP1_I2C1_SDA_PIN, RP1_GPIO_FSEL_I2C1);
+  Rp1BusSetBank0PinFunction (Rp1Data, RP1_I2C1_SCL_PIN, RP1_GPIO_FSEL_I2C1);
+}
 
 STATIC
 VOID
@@ -501,6 +572,7 @@ Rp1BusDriverBindingStart (
   Rp1BusRegisterDevices (Rp1Data);
   Rp1BusEthernetBringUp (Rp1Data);
   Rp1BusUsbHostBringUp (Rp1Data);
+  Rp1BusHeaderPinmux (Rp1Data);
   Rp1BusEnableInterrupts (Rp1Data);
 
   return EFI_SUCCESS;

@@ -92,6 +92,68 @@ Device (ETH0) {
   })
 }
 
+// I2C1 on the 40-pin header (GPIO2 SDA, GPIO3 SCL, muxed by firmware):
+// Synopsys DesignWare, bound through the generic i2c-designware driver.
+Device (I2C1) {
+  Name (_HID, "PRP0001")
+  Name (_UID, 0x1)
+
+  Method (_CRS, 0, Serialized) {
+    Name (RBUF, ResourceTemplate () {
+      RP1_QWORDMEMORY_BUF (00)
+      RP1_INTERRUPT_BUF (01)
+    })
+    RP1_QWORDMEMORY_SET (00, RP1_I2C1_BASE, RP1_I2C_SIZE)
+    RP1_INTERRUPT_SET (01)
+    Return (RBUF)
+  }
+
+  Name (_DSD, Package () {
+    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+    Package () {
+      Package () { "compatible", "snps,designware-i2c" }
+    }
+  })
+
+  // ACPI has no clock framework, so the driver cannot derive the SCL counts
+  // from RP1_CLK_SYS (200 MHz); these are the values it computes on a
+  // devicetree boot (100 kHz standard and 400 kHz fast mode, 100 ns SCL fall
+  // time, no SDA hold override).
+  Method (SSCN, 0) { Return (Package () { 857, 959, 0 }) }
+  Method (FMCN, 0) { Return (Package () { 177, 279, 0 }) }
+}
+
+// RP1 GPIO and pin controller (the 40-pin header GPIOs), three banks.
+Device (GPI0) {
+  Name (_HID, "PRP0001")
+  Name (_UID, 0x0)
+
+  Method (_CRS, 0, Serialized) {
+    Name (RBUF, ResourceTemplate () {
+      RP1_QWORDMEMORY_BUF (00)
+      RP1_QWORDMEMORY_BUF (01)
+      RP1_QWORDMEMORY_BUF (02)
+      RP1_INTERRUPT_BUF (03)
+      RP1_INTERRUPT_BUF (04)
+      RP1_INTERRUPT_BUF (05)
+    })
+    RP1_QWORDMEMORY_SET (00, RP1_IO_BANK0_BASE, RP1_GPIO_BANKS_SIZE)
+    RP1_QWORDMEMORY_SET (01, RP1_SYS_RIO0_BASE, RP1_GPIO_BANKS_SIZE)
+    RP1_QWORDMEMORY_SET (02, RP1_PADS_BANK0_BASE, RP1_GPIO_BANKS_SIZE)
+    RP1_INTERRUPT_SET (03)
+    RP1_INTERRUPT_SET (04)
+    RP1_INTERRUPT_SET (05)
+    Return (RBUF)
+  }
+
+  Name (_DSD, Package () {
+    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+    Package () {
+      Package () { "compatible", "raspberrypi,rp1-gpio" }
+    }
+  })
+}
+
 //
 // The Pi 5 fan is one physical four-speed fan. Windows only supports the
 // ACPI 1.0 D-state fan interface, so model each speed as a logical fan and

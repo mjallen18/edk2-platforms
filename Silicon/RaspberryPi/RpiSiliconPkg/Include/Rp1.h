@@ -111,6 +111,11 @@
 
 #define RP1_ETH_SIZE                                0x00004000
 
+#define RP1_I2C_SIZE                                0x00001000
+
+// Size of each of the three-bank GPIO, RIO and PADS register ranges.
+#define RP1_GPIO_BANKS_SIZE                         0x0000c000
+
 //
 // Local MSI-X vectors
 //
