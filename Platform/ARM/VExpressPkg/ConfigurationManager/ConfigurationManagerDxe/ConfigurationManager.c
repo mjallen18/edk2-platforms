@@ -1,7 +1,7 @@
 /** @file
   Configuration Manager Dxe
 
-  Copyright (c) 2017 - 2025, Arm Limited. All rights reserved.<BR>
+  Copyright (c) 2017 - 2026, Arm Limited. All rights reserved.<BR>
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -11,6 +11,9 @@
 
   @par Reference(s):
     - Base Platform interrupt assignments [https://developer.arm.com/documentation/110379/1131/Base-Platform/Base-Platform-interrupt-assignments]
+    - Base Platform Memory Map [https://support.arm.com/documentation/110379/1132/Base-Platform/Base-Platform-memory-map]
+    - Base Platform GICv5 interrupt assignments [https://support.arm.com/documentation/110379/1132/Base-Platform/FVP-Base-RevC-2xAEMvA-GICv5-platform-interrupt-assignments]
+    - GICv5 specification [https://support.arm.com/documentation/111701/latest]
 
 **/
 
@@ -19,6 +22,7 @@
 #include <IndustryStandard/SerialPortConsoleRedirectionTable.h>
 #include <IndustryStandard/IoRemappingTable.h>
 #include <IndustryStandard/MemoryMappedConfigurationSpaceAccessTable.h>
+#include <IndustryStandard/UefiTcgPlatform.h>
 #include <IndustryStandard/Tpm2Acpi.h>
 #include <IndustryStandard/Tpm20.h>
 #include <IndustryStandard/TpmPtp.h>
@@ -33,6 +37,7 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 #include <Library/SmbiosSmcLib.h>
+#include <Library/Tpm2CommandLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Protocol/AcpiTable.h>
 #include <Protocol/ConfigurationManagerProtocol.h>
@@ -69,8 +74,8 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
     },
     // MADT Table
     {
-      EFI_ACPI_6_5_MULTIPLE_APIC_DESCRIPTION_TABLE_SIGNATURE,
-      EFI_ACPI_6_5_MULTIPLE_APIC_DESCRIPTION_TABLE_REVISION,
+      EFI_ACPI_6_7_MULTIPLE_APIC_DESCRIPTION_TABLE_SIGNATURE,
+      EFI_ACPI_6_7_MULTIPLE_APIC_DESCRIPTION_TABLE_REVISION,
       CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdMadt),
       NULL
     },
@@ -102,6 +107,13 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdSsdtCpuTopology),
       NULL
     },
+    // SSDT PL050 Keyboard/Mouse Table
+    {
+      EFI_ACPI_6_3_SECONDARY_SYSTEM_DESCRIPTION_TABLE_SIGNATURE,
+      0, // Unused
+      CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdSsdtPl050),
+      NULL
+    },
     // PPTT Table
     {
       EFI_ACPI_6_3_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_STRUCTURE_SIGNATURE,
@@ -109,11 +121,26 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdPptt),
       NULL
     },
+    // SRAT Table
+    {
+      EFI_ACPI_6_7_SYSTEM_RESOURCE_AFFINITY_TABLE_SIGNATURE,
+      EFI_ACPI_6_7_SYSTEM_RESOURCE_AFFINITY_TABLE_REVISION,
+      CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdSrat),
+      NULL
+    },
+#ifdef ENABLE_TPM
+    {
+      EFI_ACPI_6_5_TRUSTED_COMPUTING_PLATFORM_2_TABLE_SIGNATURE,
+      EFI_TPM2_ACPI_TABLE_REVISION_5,
+      CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdTpm2),
+      NULL,
+    },
+#endif
     // Note: The last 3 tables in this list are for FVP RevC only.
     // IORT Table - FVP RevC
     {
       EFI_ACPI_6_3_IO_REMAPPING_TABLE_SIGNATURE,
-      EFI_ACPI_IO_REMAPPING_TABLE_REVISION_00,
+      EFI_ACPI_IO_REMAPPING_TABLE_REVISION_07,
       CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdIort),
       NULL
     },
@@ -132,14 +159,6 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       NULL,
       SIGNATURE_64 ('S', 'S', 'D', 'T', '-', 'P', 'C', 'I')
     },
-#ifdef ENABLE_TPM
-    {
-      EFI_ACPI_6_5_TRUSTED_COMPUTING_PLATFORM_2_TABLE_SIGNATURE,
-      EFI_TPM2_ACPI_TABLE_REVISION_5,
-      CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdTpm2),
-      NULL,
-    },
-#endif
   },
 
   { // SMBIOS
@@ -152,7 +171,14 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       SMBIOS_TYPE_PROCESSOR_INFORMATION,
       CREATE_STD_SMBIOS_TABLE_GEN_ID (EStdSmbiosTableIdType04),
       NULL
-    }
+    },
+#ifdef ENABLE_TPM
+    {
+      SMBIOS_TYPE_TPM_DEVICE,
+      CREATE_STD_SMBIOS_TABLE_GEN_ID (EStdSmbiosTableIdType43),
+      NULL
+    },
+#endif
   },
 
   // Boot architecture information
@@ -165,6 +191,26 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
 
   // Power management profile information
   { EFI_ACPI_6_5_PM_PROFILE_ENTERPRISE_SERVER },    // PowerManagement Profile
+
+  // PL050 keyboard/mouse interfaces.
+  {
+    {
+      FALSE,                           // IsMouse
+      FVP_PL050_KEYBOARD_BASE_ADDRESS, // BaseAddress
+      {
+        FVP_PL050_KEYBOARD_IRQ, // Interrupt
+        BIT0 // ResourceConsumer, Level, ActiveHigh, Exclusive
+      }
+    },
+    {
+      TRUE,                         // IsMouse
+      FVP_PL050_MOUSE_BASE_ADDRESS, // BaseAddress
+      {
+        FVP_PL050_MOUSE_IRQ, // Interrupt
+        BIT0 // ResourceConsumer, Level, ActiveHigh, Exclusive
+      }
+    }
+  },
 
   /* GIC CPU Interface information
      GIC_ENTRY (CPUInterfaceNumber, Mpidr, PmuIrq, VGicIrq, EnergyEfficiency)
@@ -298,7 +344,87 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
     // The GIC ITS ID.
     0,
     // The physical address for the Interrupt Translation Service
-    0x2f020000
+    0x2f020000,
+    // The proximity domain
+    0,
+    // The proximity domain token
+    CM_NULL_TOKEN,
+  },
+
+  // GIC ITSv5
+  // linked to N IWBs
+  // IWB linked to 1 ITS
+  {
+    // Reference token for ITSv5
+    REFERENCE_TOKEN (GicItsV5Info),
+    // The GIC ITSv5 ID.
+    0,
+    // Flags
+    0,
+    // The physical address for the Interrupt Translation Service
+    FVP_GICV5_ITS_CONF_FRAME_BASE,
+    // The proximity domain
+    0,
+    // The proximity domain token
+    CM_NULL_TOKEN,
+  },
+
+  // GIC ITSv5 Translate Frame Information
+  {
+    {
+      // Linked GIC ITSv5 Token
+      REFERENCE_TOKEN (GicItsV5Info),
+      // The GIC ITSv5 translate frame ID.
+      0,
+      // The physical address for the ITS Translate Frame
+      FVP_GICV5_ITS_TRANS_FRAME_BASE,
+    },
+  },
+
+  // GIC IRS
+  // linked to N PEs
+  // PE linked to 1 IRS
+  {
+    // Reference token for IRS
+    REFERENCE_TOKEN (GicIrsInfo),
+    // GIC Version
+    5,
+    // The GIC IRS ID
+    0,
+    // Flags
+    0,
+    // The physical address for the Configuration Frame
+    FVP_GICV5_IRS_CONF_FRAME_BASE,
+    // The physical address for the Set LPI Frame
+    FVP_GICV5_IRS_SETLPI_FRAME_BASE,
+    // The proximity domain
+    0,
+    // The proximity domain token
+    CM_NULL_TOKEN,
+  },
+
+  // GIC IWB
+  // linked to ONE ITS
+  // ITS linked to N IWBs
+  {
+    // Reference token for this Iort node
+    REFERENCE_TOKEN (GicIwbInfo),
+    // The GIC IWB ID
+    0,
+    // The GIC Linked ITS Token
+    REFERENCE_TOKEN (GicItsV5Info),
+    // The physical address for the Configuration Frame
+    FVP_GICV5_IWB_CONF_FRAME_BASE,
+    // The device ID
+    64,
+    // The Base GSIV
+    FVP_GICV5_IWB_GSIV_BASE,
+    // The number of wires
+    64,
+    // Reference token for the ID mapping array
+    REFERENCE_TOKEN (DeviceIdMapping[3]),
+    // Unique identifier
+    1
   },
 
   // SMMUv3 Node
@@ -341,10 +467,16 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
     // The number of ITS identifiers in the ITS node.
     1,
     // Reference token for the ITS identifier array
-    REFERENCE_TOKEN (ItsIdentifierArray)
+    REFERENCE_TOKEN (ItsIdentifierArray),
+    // Unique identifier for this node
+    4
   },
-  // ITS identifier array
+  // ITS identifier or ITS Translate ID array
   {
+    //
+    // Since, FVP RevC only have 1 ITS with 1 ITS translate frame,
+    // It's valid to set one ITS translate identifier with 0 with GicV5.
+    //
     {
       // The ITS Identifier
       0
@@ -358,7 +490,7 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
     // Number of ID mappings
     1,
     // Reference token for the ID mapping array
-    REFERENCE_TOKEN (DeviceIdMapping[1]),
+    REFERENCE_TOKEN (DeviceIdMapping[2]),
 
     // Memory access properties : Cache coherent attributes
     EFI_ACPI_IORT_MEM_ACCESS_PROP_CCA,
@@ -371,7 +503,13 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
     // PCI segment number
     0,
     // Memory Address Size Limit
-    64
+    64,
+    // PASID capabilities
+    0,
+    // Flags
+    0,
+    // Unique identifier for this node
+    2
   },
 
   // Array of Device ID mappings
@@ -393,6 +531,20 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       // Flags
       0
     },
+    // Additional SMMUv3 device ID mapping for GicV5
+    // to describe MSI generated by the SMMU itself
+    {
+      // Input base
+      0x10000,
+      // Number of input IDs
+      1,
+      // Output Base
+      0x10000,
+      // Output reference
+      REFERENCE_TOKEN (ItsGroupInfo),
+      // Flags
+      EFI_ACPI_IORT_ID_MAPPING_FLAGS_SINGLE
+    },
     // Device ID mapping for Root complex node
     {
       // Input base
@@ -405,6 +557,19 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       REFERENCE_TOKEN (SmmuV3Info),
       // Flags
       0
+    },
+    // Device ID mapping for Iwb node
+    {
+      // Input base
+      0x0,
+      // Number of input IDs
+      0x1,
+      // Output Base
+      64, // IWB Device ID
+      // Output reference token for the IORT node
+      REFERENCE_TOKEN (ItsGroupInfo),
+      // Flags
+      EFI_ACPI_IORT_ID_MAPPING_FLAGS_SINGLE
     }
   },
 
@@ -455,7 +620,11 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
     { REFERENCE_TOKEN (PciInterruptMapInfo[0]) },
     { REFERENCE_TOKEN (PciInterruptMapInfo[1]) },
     { REFERENCE_TOKEN (PciInterruptMapInfo[2]) },
-    { REFERENCE_TOKEN (PciInterruptMapInfo[3]) }
+    { REFERENCE_TOKEN (PciInterruptMapInfo[3]) },
+    { REFERENCE_TOKEN (PciInterruptMapInfo[4]) },
+    { REFERENCE_TOKEN (PciInterruptMapInfo[5]) },
+    { REFERENCE_TOKEN (PciInterruptMapInfo[6]) },
+    { REFERENCE_TOKEN (PciInterruptMapInfo[7]) },
   },
 
   // PCI device legacy interrupts mapping information
@@ -465,7 +634,7 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       0, // PciDevice
       0, // PciInterrupt
       {
-        168, // Interrupt
+        200, // Interrupt
         0x0  // Flags
       }
     },
@@ -474,7 +643,7 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       0, // PciDevice
       1, // PciInterrupt
       {
-        169, // Interrupt
+        201, // Interrupt
         0x0  // Flags
       }
     },
@@ -483,7 +652,7 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       0, // PciDevice
       2, // PciInterrupt
       {
-        170, // Interrupt
+        202, // Interrupt
         0x0  // Flags
       }
     },
@@ -492,7 +661,43 @@ EDKII_PLATFORM_REPOSITORY_INFO  VExpressPlatRepositoryInfo = {
       0, // PciDevice
       3, // PciInterrupt
       {
-        171, // Interrupt
+        203, // Interrupt
+        0x0  // Flags
+      }
+    },
+    {    // PciInterruptMapInfo[4] -> Interrupt Wired Bridge (IWB) Device 31, INTA
+      0, // PciBus
+      0x1f, // PciDevice
+      0, // PciInterrupt
+      {
+        FVP_GICV5_PCIE_IWB0_IRQ, // Interrupt
+        0x0  // Flags
+      }
+    },
+    {    // PciInterruptMapInfo[5] -> Interrupt Wired Bridge (IWB) Device 31, INTB
+      0, // PciBus
+      0x1f, // PciDevice
+      1, // PciInterrupt
+      {
+        FVP_GICV5_PCIE_IWB1_IRQ, // Interrupt
+        0x0  // Flags
+      }
+    },
+    {    // PciInterruptMapInfo[6] -> Interrupt Wired Bridge (IWB) Device 31, INTC
+      0, // PciBus
+      0x1f, // PciDevice
+      2, // PciInterrupt
+      {
+        FVP_GICV5_PCIE_IWB2_IRQ, // Interrupt
+        0x0  // Flags
+      }
+    },
+    {    // PciInterruptMapInfo[7] -> Interrupt Wired Bridge (IWB) Device 31, INTD
+      0, // PciBus
+      0x1f, // PciDevice
+      3, // PciInterrupt
+      {
+        FVP_GICV5_PCIE_IWB3_IRQ, // Interrupt
         0x0  // Flags
       }
     },
@@ -1182,6 +1387,103 @@ CopyString (
 }
 
 #ifdef ENABLE_TPM
+#define NUMBER_OF_TPM_VENDOR_STRING_PROP (TPM_PT_VENDOR_STRING_4 - TPM_PT_VENDOR_STRING_1 + 1)
+
+/** Populate TPM device information
+
+  @param [in]  PlatformRepo      Pointer to the Configuration Manager Protocol.
+
+  @retval EFI_SUCCESS            Success
+  @retval Others                 Error to get information from TPM device.
+*/
+STATIC
+EFI_STATUS
+EFIAPI
+PopulatePlatformTpmDevInfo (
+  IN EDKII_PLATFORM_REPOSITORY_INFO  *PlatformRepo
+  )
+{
+  EFI_STATUS                         Status;
+  CM_ARCH_COMMON_TPM_DEVICE_INFO     *TpmDevInfo;
+  UINT32                             ManufactureId;
+  TPMS_CAPABILITY_DATA               TpmCap;
+  TPMI_YES_NO                        MoreData;
+  UINTN                              Idx;
+
+  TpmDevInfo = &PlatformRepo->TpmDevInfo;
+
+  Status = Tpm2GetCapabilityFirmwareVersion (
+             &TpmDevInfo->FirmwareVersion1,
+             &TpmDevInfo->FirmwareVersion2
+             );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "Failed to get TPM firmware-version information. Status=%r\n",
+      Status
+      ));
+    return Status;
+  }
+
+  Status = Tpm2GetCapabilityManufactureID (&ManufactureId);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "Failed to get TPM ManufactureId information. Status=%r\n",
+      Status
+      ));
+    return Status;
+  }
+
+  CopyMem (TpmDevInfo->VendorId, &ManufactureId, sizeof (TpmDevInfo->VendorId));
+
+  Status = Tpm2GetCapability (
+             TPM_CAP_TPM_PROPERTIES,
+             TPM_PT_VENDOR_STRING_1,
+             NUMBER_OF_TPM_VENDOR_STRING_PROP,
+             &MoreData,
+             &TpmCap
+             );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "Failed to get TPM VENDOR_STRING information. Status=%r\n",
+      Status
+      ));
+    return Status;
+  }
+
+  /*
+   * Copy vendor string properties into description.
+   */
+  for (Idx = 0; Idx < NUMBER_OF_TPM_VENDOR_STRING_PROP; Idx++) {
+    if (*(CHAR8 *)&TpmCap.data.tpmProperties.tpmProperty[Idx].value == '\0') {
+      break;
+    }
+
+    CopyMem (
+      TpmDevInfo->Description + (Idx * sizeof (UINT32)),
+      &TpmCap.data.tpmProperties.tpmProperty[Idx].value,
+      sizeof (UINT32)
+      );
+  }
+
+  TpmDevInfo->Tpm2DeviceBaseAddress = FixedPcdGet64 (PcdTpmBaseAddress);
+  TpmDevInfo->Tpm2DeviceSize = PcdGet32 (PcdTpmCrbRegionSize);
+  TpmDevInfo->TpmDeviceInfoToken = REFERENCE_TOKEN (TpmDevInfo);
+  TpmDevInfo->MajorSpecVersion = TCG_EfiSpecIDEventStruct_SPEC_VERSION_MAJOR_TPM2;
+  TpmDevInfo->MinorSpecVersion = TCG_EfiSpecIDEventStruct_SPEC_VERSION_MINOR_TPM2;
+  /*
+   * fTPM doesn't support the 1.2 and 2.0 switching and
+   * there is no firmware interface to figure out whether to support
+   * switchin 1.2 and 2.0. Therefore, Set BIT 2 which means
+   * TPM Device Characteristics are not supported and set other bits as 0.
+   */
+  TpmDevInfo->Characteristics = BIT2;
+
+  return EFI_SUCCESS;
+}
+
 STATIC
 EFI_STATUS
 EFIAPI
@@ -1190,7 +1492,6 @@ PopulatePlatformTpmInfoSpmMm (
   )
 {
   CM_ARCH_COMMON_TPM2_INTERFACE_INFO *TpmInfo;
-  CM_ARCH_COMMON_TPM2_DEVICE_INFO    *TpmDevInfo;
   EFI_TPM2_ACPI_START_METHOD_SPECIFIC_PARAMETERS_ARM_SMC Tpm2ArmSmcParam;
 
   TpmInfo = &PlatformRepo->TpmInfo;
@@ -1204,10 +1505,6 @@ PopulatePlatformTpmInfoSpmMm (
   // Temporary, no event log right now before UEFI boot...
   TpmInfo->Laml = 0x00;
   TpmInfo->Lasa = 0x00;
-
-  TpmDevInfo = &PlatformRepo->TpmDevInfo;
-  TpmDevInfo->Tpm2DeviceBaseAddress =  FixedPcdGet64 (PcdTpmBaseAddress);
-  TpmDevInfo->Tpm2DeviceSize = PcdGet32 (PcdTpmCrbRegionSize);
 
   if (FixedPcdGetBool (PcdTpmUseSipSmc)) {
     ZeroMem (
@@ -1356,7 +1653,6 @@ PopulatePlatformTpmInfoFfa (
 {
   EFI_STATUS Status;
   CM_ARCH_COMMON_TPM2_INTERFACE_INFO *TpmInfo;
-  CM_ARCH_COMMON_TPM2_DEVICE_INFO    *TpmDevInfo;
   EFI_TPM2_ACPI_START_METHOD_SPECIFIC_PARAMETERS_ARM_FFA Tpm2ArmFfaParam;
   EFI_TPM2_ACPI_START_METHOD_SPECIFIC_PARAMETERS_ARM_SMC Tpm2ArmSmcParam;
   UINT16 TpmPartId;
@@ -1377,10 +1673,6 @@ PopulatePlatformTpmInfoFfa (
   // Temporary, no event log right now before UEFI boot...
   TpmInfo->Laml = 0x00;
   TpmInfo->Lasa = 0x00;
-
-  TpmDevInfo = &PlatformRepo->TpmDevInfo;
-  TpmDevInfo->Tpm2DeviceBaseAddress =  FixedPcdGet64 (PcdTpmBaseAddress);
-  TpmDevInfo->Tpm2DeviceSize = PcdGet32 (PcdTpmCrbRegionSize);
 
   if (!FixedPcdGetBool (PcdTpmUseSipSmc)) {
     ZeroMem (
@@ -1458,6 +1750,11 @@ PopulatePlatformTpmInfo (
 {
   EFI_STATUS Status;
 
+  Status = PopulatePlatformTpmDevInfo (PlatformRepo);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
   if (IsFfaSupported ()) {
     Status = PopulatePlatformTpmInfoFfa (PlatformRepo);
   } else {
@@ -1510,11 +1807,6 @@ InitializePlatformRepository (
 
   PlatformRepo = This->PlatRepoInfo;
 
-  if (ArmHasGicV5SystemRegisters ()) {
-    DEBUG ((DEBUG_ERROR, "ConfigurationManager: GICv5 not supported.\n"));
-    return EFI_UNSUPPORTED;
-  }
-
   PlatformRepo->SysId = MmioRead32 (ARM_VE_SYS_ID_REG);
   if ((PlatformRepo->SysId & ARM_FVP_SYS_ID_REV_MASK) ==
       ARM_FVP_BASE_REVC_REV)
@@ -1529,6 +1821,8 @@ InitializePlatformRepository (
     PlatformRepo->GicCInfo[5].MPIDR = GET_MPID_MT (1, 1, 0);
     PlatformRepo->GicCInfo[6].MPIDR = GET_MPID_MT (1, 2, 0);
     PlatformRepo->GicCInfo[7].MPIDR = GET_MPID_MT (1, 3, 0);
+
+    PlatformRepo->HasGicV5 = ArmHasGicV5SystemRegisters();
   }
 
   TrbeInterrupt = 0;
@@ -1548,6 +1842,46 @@ InitializePlatformRepository (
   for (Index = 0; Index < PLAT_CPU_COUNT; Index++) {
     PlatformRepo->GicCInfo[Index].TrbeInterrupt = TrbeInterrupt;
     PlatformRepo->GicCInfo[Index].EtToken       = EtToken;
+  }
+
+  if (PlatformRepo->HasGicV5) {
+    // GICv5 uses different interrupts to previous GICs
+    for (Index = 0; Index < PLAT_CPU_COUNT; Index++) {
+      PlatformRepo->GicCInfo[Index].PerformanceInterruptGsiv = FVP_GICV5_PMU_IRQ;
+      PlatformRepo->GicCInfo[Index].VGICMaintenanceInterrupt = FVP_GICV5_VGIC_IRQ;
+      PlatformRepo->GicCInfo[Index].IAffId = Index;
+      PlatformRepo->GicCInfo[Index].IrsToken = PlatformRepo->GicIrsInfo.Token;
+    }
+
+    PlatformRepo->GenericTimerInfo.SecurePL1TimerGSIV    = FVP_GICV5_ARM_ARCH_S_TIMER_IRQ;
+    PlatformRepo->GenericTimerInfo.NonSecurePL1TimerGSIV = FVP_GICV5_ARM_ARCH_NS_TIMER_IRQ;
+    PlatformRepo->GenericTimerInfo.VirtualTimerGSIV      = FVP_GICV5_ARM_ARCH_VIRT_TIMER_IRQ;
+    PlatformRepo->GenericTimerInfo.NonSecurePL2TimerGSIV = FVP_GICV5_ARM_ARCH_HYP_TIMER_IRQ;
+
+    PlatformRepo->GTBlock0TimerInfo[0].PhysicalTimerGSIV = FVP_GT_BLOCK_FRAME0_GSIV_GICV5;
+    PlatformRepo->GTBlock0TimerInfo[1].PhysicalTimerGSIV = FVP_GT_BLOCK_FRAME1_GSIV_GICV5;
+
+    PlatformRepo->SpcrSerialPort.Interrupt = FVP_GICV5_SPCR_IRQ;
+
+    PlatformRepo->DbgSerialPort.Interrupt = FVP_GICV5_DBG_IRQ;
+
+    PlatformRepo->Pl050Info[0].Interrupt.Interrupt = FVP_GICV5_PL050_KEYBOARD_IRQ;
+    PlatformRepo->Pl050Info[1].Interrupt.Interrupt = FVP_GICV5_PL050_MOUSE_IRQ;
+
+    PlatformRepo->SmmuV3Info.IdMappingCount = 2;
+    PlatformRepo->SmmuV3Info.Flags |= EFI_ACPI_IORT_SMMUv3_FLAG_DEVICEID_VALID;
+    PlatformRepo->SmmuV3Info.DeviceIdMappingIndex = 1; // DeviceIdMapping[1]
+    PlatformRepo->SmmuV3Info.EventInterrupt = FVP_GICV5_SMMU3_EVENT_IRQ;
+    PlatformRepo->SmmuV3Info.PriInterrupt   = FVP_GICV5_SMMU3_PRI_IRQ;
+    PlatformRepo->SmmuV3Info.GerrInterrupt  = FVP_GICV5_SMMU3_GERR_IRQ;
+    PlatformRepo->SmmuV3Info.SyncInterrupt  = FVP_GICV5_SMMU3_SYNC_IRQ;
+
+    PlatformRepo->PciInterruptMapInfo[0].IntcInterrupt.Interrupt = FVP_GICV5_PCIE_PRT0_IRQ;
+    PlatformRepo->PciInterruptMapInfo[1].IntcInterrupt.Interrupt = FVP_GICV5_PCIE_PRT1_IRQ;
+    PlatformRepo->PciInterruptMapInfo[2].IntcInterrupt.Interrupt = FVP_GICV5_PCIE_PRT2_IRQ;
+    PlatformRepo->PciInterruptMapInfo[3].IntcInterrupt.Interrupt = FVP_GICV5_PCIE_PRT3_IRQ;
+
+    PlatformRepo->CmAcpiTableList[4].AcpiTableData = (EFI_ACPI_DESCRIPTION_HEADER*)dsdtgicv5_aml_code;
   }
 
   // Retrieve interrupts stored in PCDs
@@ -1737,15 +2071,24 @@ GetDeviceIdMappingArray (
   PlatformRepo = This->PlatRepoInfo;
 
   if ((Token != (CM_OBJECT_TOKEN)&PlatformRepo->DeviceIdMapping[0]) &&
-      (Token != (CM_OBJECT_TOKEN)&PlatformRepo->DeviceIdMapping[1]))
+      (Token != (CM_OBJECT_TOKEN)&PlatformRepo->DeviceIdMapping[2]) &&
+      (Token != (CM_OBJECT_TOKEN)&PlatformRepo->DeviceIdMapping[3]))
   {
     return EFI_NOT_FOUND;
   }
 
   CmObject->ObjectId = CmObjectId;
-  CmObject->Size     = sizeof (CM_ARM_ID_MAPPING);
   CmObject->Data     = (VOID *)Token;
-  CmObject->Count    = 1;
+
+  if (PlatformRepo->HasGicV5 &&
+      (Token == (CM_OBJECT_TOKEN)&PlatformRepo->DeviceIdMapping[0])) {
+    CmObject->Size     = sizeof (CM_ARM_ID_MAPPING) * 2;
+    CmObject->Count    = 2;
+  } else {
+    CmObject->Size     = sizeof (CM_ARM_ID_MAPPING);
+    CmObject->Count    = 1;
+  }
+
   return EFI_SUCCESS;
 }
 
@@ -1832,7 +2175,15 @@ GetPciInterruptMapInfo (
 
   PlatformRepo = This->PlatRepoInfo;
 
-  TotalObjCount = ARRAY_SIZE (PlatformRepo->PciInterruptMapInfo);
+  if (PlatformRepo->HasGicV5) {
+      TotalObjCount = ARRAY_SIZE (PlatformRepo->PciInterruptMapInfo);
+  } else {
+      ///
+      /// From PciInterruptMapInfo[4] to PciInterruptMapInfo[7] for
+      /// IWB device when GiCv5 is present. Truncate it.
+      ///
+      TotalObjCount = ARRAY_SIZE (PlatformRepo->PciInterruptMapInfo) / 2;
+  }
 
   for (ObjIndex = 0; ObjIndex < TotalObjCount; ObjIndex++) {
     if (SearchToken == (CM_OBJECT_TOKEN)&PlatformRepo->PciInterruptMapInfo[ObjIndex]) {
@@ -1939,7 +2290,15 @@ GetCmObjRefs (
   if (SearchToken == (CM_OBJECT_TOKEN)&PlatformRepo->PciInterruptMapRef) {
     CmObject->Size  = sizeof (PlatformRepo->PciInterruptMapRef);
     CmObject->Data  = (VOID *)&PlatformRepo->PciInterruptMapRef;
-    CmObject->Count = ARRAY_SIZE (PlatformRepo->PciInterruptMapRef);
+    if (PlatformRepo->HasGicV5) {
+      CmObject->Count = ARRAY_SIZE (PlatformRepo->PciInterruptMapRef);
+    } else {
+      ///
+      /// From PciInterruptMapRef[4] to PciInterruptMapRef[7] for
+      /// IWB device when GiCv5 is present. Truncate it.
+      ///
+      CmObject->Count = ARRAY_SIZE (PlatformRepo->PciInterruptMapRef) / 2;
+    }
     return EFI_SUCCESS;
   }
 
@@ -2265,7 +2624,7 @@ GetArchCommonNameSpaceObject (
                  );
       break;
 
-    case EArchCommonObjTpm2DeviceInfo:
+    case EArchCommonObjTpmDeviceInfo:
       Status = HandleCmObject (
                  CmObjectId,
                  &PlatformRepo->TpmDevInfo,
@@ -2358,6 +2717,16 @@ GetArmNameSpaceObject (
                  );
       break;
 
+    case EArmObjPl050Info:
+      Status = HandleCmObject (
+                 CmObjectId,
+                 PlatformRepo->Pl050Info,
+                 sizeof (PlatformRepo->Pl050Info),
+                 ARRAY_SIZE (PlatformRepo->Pl050Info),
+                 CmObject
+                 );
+      break;
+
     case EArmObjGenericTimerInfo:
       Status = HandleCmObject (
                  CmObjectId,
@@ -2415,33 +2784,39 @@ GetArmNameSpaceObject (
       break;
 
     case EArmObjGicDInfo:
-      Status = HandleCmObject (
-                 CmObjectId,
-                 &PlatformRepo->GicDInfo,
-                 sizeof (PlatformRepo->GicDInfo),
-                 1,
-                 CmObject
-                 );
+      if (!PlatformRepo->HasGicV5) {
+        Status = HandleCmObject (
+                   CmObjectId,
+                   &PlatformRepo->GicDInfo,
+                   sizeof (PlatformRepo->GicDInfo),
+                   1,
+                   CmObject
+                   );
+      }
       break;
 
     case EArmObjGicRedistributorInfo:
-      Status = HandleCmObject (
-                 CmObjectId,
-                 &PlatformRepo->GicRedistInfo,
-                 sizeof (PlatformRepo->GicRedistInfo),
-                 1,
-                 CmObject
-                 );
+      if (!PlatformRepo->HasGicV5) {
+        Status = HandleCmObject (
+                   CmObjectId,
+                   &PlatformRepo->GicRedistInfo,
+                   sizeof (PlatformRepo->GicRedistInfo),
+                   1,
+                   CmObject
+                   );
+      }
       break;
 
     case EArmObjGicItsInfo:
-      Status = HandleCmObject (
-                 CmObjectId,
-                 &PlatformRepo->GicItsInfo,
-                 sizeof (PlatformRepo->GicItsInfo),
-                 1,
-                 CmObject
-                 );
+      if (!PlatformRepo->HasGicV5) {
+        Status = HandleCmObject (
+                   CmObjectId,
+                   &PlatformRepo->GicItsInfo,
+                   sizeof (PlatformRepo->GicItsInfo),
+                   1,
+                   CmObject
+                   );
+      }
       break;
 
     case EArmObjSmmuV3:
@@ -2511,6 +2886,54 @@ GetArmNameSpaceObject (
                    );
       }
 
+      break;
+
+    case EArmObjGicIrsInfo:
+      if (PlatformRepo->HasGicV5) {
+        Status = HandleCmObject (
+                   CmObjectId,
+                   &PlatformRepo->GicIrsInfo,
+                   sizeof (PlatformRepo->GicIrsInfo),
+                   1,
+                   CmObject
+                   );
+      }
+      break;
+
+    case EArmObjGicIwbInfo:
+      if (PlatformRepo->HasGicV5) {
+        Status = HandleCmObject (
+                   CmObjectId,
+                   &PlatformRepo->GicIwbInfo,
+                   sizeof (PlatformRepo->GicIwbInfo),
+                   1,
+                   CmObject
+                   );
+      }
+      break;
+
+    case EArmObjGicItsV5Info:
+      if (PlatformRepo->HasGicV5) {
+        Status = HandleCmObject (
+                   CmObjectId,
+                   &PlatformRepo->GicItsV5Info,
+                   sizeof (PlatformRepo->GicItsV5Info),
+                   1,
+                   CmObject
+                   );
+      }
+      break;
+
+    case EArmObjGicItsV5TranslateFrameInfo:
+      if (PlatformRepo->HasGicV5) {
+        Status = HandleCmObject (
+                   CmObjectId,
+                   PlatformRepo->GicItsV5TransFrameInfo,
+                   sizeof (CM_ARM_GIC_ITSV5_TRANSLATE_FRAME_INFO),
+                   ARRAY_SIZE (PlatformRepo->GicItsV5TransFrameInfo),
+                   CmObject
+                   );
+      }
       break;
 
     default:

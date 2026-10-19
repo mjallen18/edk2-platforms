@@ -29,11 +29,39 @@
 [Guids]
   gAmdPlatformPkgTokenSpaceGuid   = { 0x663DE733, 0x70E0, 0x4D37, { 0xBB, 0x30, 0x7D, 0x9E, 0xAF, 0x9B, 0xDA, 0xE9 }}
 
+  ## gAmdPlatformFakeSpiDriver Guid
+  #  Identifies the AMD platform fake SPI peripheral driver.
+  gAmdPlatformFakeSpiDriverGuid   = { 0x07fecf70, 0xd7ae, 0x4274, { 0x9f, 0x70, 0x78, 0xc8, 0x36, 0x91, 0xd4, 0xfb }}
+
+  ## gAmdTscFrequencyGuid
+  #  Used for TSC frequency information (PEI HOB / DXE configuration table).
+  gAmdTscFrequencyGuid            = { 0x614facf7, 0x1ac6, 0x4b15, { 0xa8, 0x8c, 0x2c, 0x1a, 0x70, 0xd7, 0x77, 0xec }}
+  gAmdBoardIdHobGuid              = { 0x2836E22B, 0x4C01, 0xE0CD, { 0x69, 0xDD, 0xF8, 0xA8, 0x7C, 0xE5, 0x80, 0x8A }}
+
+[Ppis]
+  ## PPI installed by PspPreTcgEventLogPei after PSP measurement HOBs are created.
+  #  Used as a DEPEX dependency by Tcg2Pei to enforce PEI dispatch ordering.
+  gAmdPspPreTcgEventLogDonePpiGuid = { 0x93EAAEE7, 0x2269, 0x412C, { 0x9C, 0xA4, 0x46, 0xC9, 0x25, 0x87, 0xE1, 0x1C }}
+  gAmdBoardIdPpiGuid               = { 0x3CEA405B, 0x4D26, 0x571C, { 0x5C, 0xB7, 0x26, 0x95, 0x98, 0x0B, 0x2A, 0x5E }}
+  gM24Lc128PpiGuid                 = { 0xca4f8926, 0xa5a4, 0x438d, { 0xb6, 0xe7, 0x82, 0x9f, 0x10, 0xa5, 0x4c, 0xd3 }}
+  gTca9548aPpiGuid                 = { 0xA4AEA1B3, 0x2687, 0x4C68, { 0x91, 0x0F, 0x31, 0x5B, 0xA2, 0xFB, 0x95, 0x3C }}
+  gM24Lc256PpiGuid                 = { 0xDEDB33A5, 0x3C74, 0x4957, { 0xB9, 0x24, 0x7D, 0xA1, 0xB9, 0xD7, 0xCE, 0x58 }}
+  gAmdEnvRealHWPpiGuid             = { 0x40a4d340, 0xe110, 0x46c7, { 0x39, 0xb9, 0x5c, 0x1a, 0xaf, 0x69, 0x4e, 0x59 }}
+
 [Protocols]
+  ## This protocol handles platform specific boot priority override.
+  #  Include/Protocol/AmdBootOptionPriorityProtocol.h
+  gAmdBoardBdsBootOptionPriorityProtocolGuid = { 0x5806db97, 0x5303, 0x409f, { 0x8f, 0x09, 0xab, 0x29, 0xd8, 0x07, 0xa3, 0xf1}}
+
   gAmdSpiHcStateProtocolGuid      = { 0x189566ab, 0x245, 0x43ae, {0x9d, 0x1, 0xd2, 0x21, 0x1c, 0xb9, 0x1a, 0xda }}
   gFakeDeviceIoProtocolGuid       = {0x7fecf70, 0xd7ae, 0x4274, {0x9f, 0x70, 0x78, 0xc8, 0x36, 0x91, 0xd4, 0xfb}}
   gEdk2EspiSmmDriverProtocolGuid  = {0x0ecc91df, 0xe165, 0x42ee, {0x82, 0xa7, 0x8d, 0x63, 0x98, 0x53, 0x6a, 0x31}}
   gAmdEspiSmmNorFlashProtocolGuid = {0x6ef7b652, 0x84b7, 0x4d43, {0x9d, 0x88, 0x04, 0xb3, 0x0c, 0x49, 0xde, 0xd5}}
+  gAmdBoardIdProtocolGuid         = { 0xCB253957, 0x4DB6, 0x9D0C, { 0xAE, 0x7D, 0x85, 0xAD, 0x9C, 0xAA, 0xE3, 0x75 }}
+  gAmdEnvRealHWProtocolGuid       = { 0x58643e3b, 0xbffb, 0x4201, { 0x28, 0xae, 0xb7, 0x9b, 0x43, 0xe1, 0x4e, 0x6a }}
+
+  ## System topology protocol GUID
+  gEfiSysTopologyProtocolGuid     = {0x9af2c1de, 0x115a, 0x49f0, {0xa7, 0xc1, 0x27, 0x6c, 0x21, 0xa4, 0x4e, 0x53}}
 
 [PcdsDynamic]
   ## Event GUID to trigger logo displaying
@@ -43,7 +71,188 @@
   #
   gAmdPlatformPkgTokenSpaceGuid.PcdAmdDisplayLogoEventGuid|{0xdc, 0xd5, 0xb3, 0x8e, 0xe7, 0xf4, 0x57, 0x4b, 0xa9, 0xe7, 0x27, 0x39, 0x10, 0xf2, 0x18, 0x9f}|VOID*|0x00010001
 
+  #
+  # SMBIOS Type 0 BIOS Information
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation|{0x0}|SMBIOS_TABLE_TYPE0|0xD0000001 {
+    <HeaderFiles>
+      IndustryStandard/SmBios.h
+    <Packages>
+      MdePkg/MdePkg.dec
+      AmdPlatformPkg/AmdPlatformPkg.dec
+  }
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.Vendor|0x1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosVersion|0x2
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosSegment|0x0000
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosReleaseDate|0x3
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosSize|0xFF
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.PciIsSupported|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.PlugAndPlayIsSupported|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.BiosIsUpgradable|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.BiosShadowingAllowed|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.BootFromCdIsSupported|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.SelectableBootIsSupported|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.EDDSpecificationIsSupported|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.Floppy525_12IsSupported|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.Floppy35_720IsSupported|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.Floppy35_288IsSupported|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.PrintScreenIsSupported|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.Keyboard8042IsSupported|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.SerialIsSupported|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.PrinterIsSupported|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BiosCharacteristics.CgaMonoIsSupported|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BIOSCharacteristicsExtensionBytes[0]|0x03
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.BIOSCharacteristicsExtensionBytes[1]|0x0F
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.SystemBiosMajorRelease|0x0
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0BiosInformation.SystemBiosMinorRelease|0x0
+
+  #
+  # SMBIOS Type 0 BIOS Information Strings
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0StringBiosReleaseDate|"MM/DD/YYYY"|VOID*|0xD1000001
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0StringBiosVersion|"UDK200205"|VOID*|0xD1000002
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType0StringVendor|"AMD"|VOID*|0xD1000003
+
+  #
+  # SMBIOS Type 1 System Information
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation|{0x0}|SMBIOS_TABLE_TYPE1|0xD0000002 {
+    <HeaderFiles>
+      IndustryStandard/SmBios.h
+    <Packages>
+      MdePkg/MdePkg.dec
+      AmdPlatformPkg/AmdPlatformPkg.dec
+  }
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation.Manufacturer|0x1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation.ProductName|0x2
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation.Version|0x3
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation.SerialNumber|0x4
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation.Uuid|{GUID("88888888-8887-8888-8888-878888888888")}
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation.WakeUpType|SystemWakeupTypePowerSwitch
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation.SKUNumber|0x5
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1SystemInformation.Family|0x6
+
+  #
+  # SMBIOS Type 1 System Information Strings
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1StringFamily|"System Family"|VOID*|0xD1000004
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1StringManufacturer|"AMD"|VOID*|0xD1000005
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1StringProductName|"System Product Name"|VOID*|0xD1000006
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1StringSerialNumber|"UNKNOWN"|VOID*|0xD1000007
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1StringSkuNumber|"System SKU Number"|VOID*|0xD1000008
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType1StringVersion|"System Version"|VOID*|0xD1000009
+
+  #
+  # SMBIOS Type 2 Base Board Information
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation|{0x0}|SMBIOS_TABLE_TYPE2|0xD0000003 {
+    <HeaderFiles>
+      IndustryStandard/SmBios.h
+    <Packages>
+      MdePkg/MdePkg.dec
+      AmdPlatformPkg/AmdPlatformPkg.dec
+  }
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.Manufacturer|0x1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.ProductName|0x2
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.Version|0x3
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.SerialNumber|0x4
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.AssetTag|0x5
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.FeatureFlag.Motherboard|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.FeatureFlag.Replaceable|1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.LocationInChassis|0x6
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2BaseBoardInformation.BoardType|BaseBoardTypeMotherBoard
+
+  #
+  # SMBIOS Type 2 Base Board Information Strings
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2StringAssetTag|"Base Board Asset Tag"|VOID*|0xD100000A
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2StringLocationInChassis|"Part Component"|VOID*|0xD100000B
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2StringManufacturer|"AMD"|VOID*|0xD100000C
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2StringProductName|"Base Board Product Name"|VOID*|0xD100000D
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2StringSerialNumber|"UNKNOWN"|VOID*|0xD100000E
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType2StringVersion|"Base Board Version"|VOID*|0xD100000F
+
+  #
+  # SMBIOS Type 3 System Enclosure Chassis
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis|{0x0}|SMBIOS_TABLE_TYPE3|0xD0000004 {
+    <HeaderFiles>
+      IndustryStandard/SmBios.h
+    <Packages>
+      MdePkg/MdePkg.dec
+      AmdPlatformPkg/AmdPlatformPkg.dec
+  }
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.Manufacturer|0x1
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.Type|MiscChassisTypeRackMountChassis
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.Version|0x2
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.SerialNumber|0x3
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.AssetTag|0x4
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.BootupState|ChassisStateSafe
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.PowerSupplyState|ChassisStateSafe
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.ThermalState|ChassisStateSafe
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.SecurityStatus|ChassisSecurityStatusNone
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3SystemEnclosureChassis.NumberofPowerCords|ChassisStateOther
+
+  #
+  # SMBIOS Type 3 System Enclosure Chassis Strings
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3StringAssetTag|"Chassis Asset Tag"|VOID*|0xD1000011
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3StringManufacturer|"AMD"|VOID*|0xD1000012
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3StringSerialNumber|"UNKNOWN"|VOID*|0xD1000013
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3StringSkuNumber|"Chassis SKU Number"|VOID*|0xD1000014
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType3StringVersion|"Chassis Version"|VOID*|0xD1000015
+
+  #
+  # SMBIOS Type 32 System Boot Information
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType32SystemBootInformation|{0x0}|SMBIOS_TABLE_TYPE32|0xD0000005 {
+    <HeaderFiles>
+      IndustryStandard/SmBios.h
+    <Packages>
+      MdePkg/MdePkg.dec
+      AmdPlatformPkg/AmdPlatformPkg.dec
+  }
+  gAmdPlatformPkgTokenSpaceGuid.PcdSmbiosType32SystemBootInformation.BootStatus|BootInformationStatusNoError
+
 [PcdsFixedAtBuild]
+  #
+  # ACPI control PCDs
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdAcpiSsdtSerialSkipOnSimNow|FALSE|BOOLEAN|0x0002000B
+
+  #
+  # ACPI OEM table ID PCDs — allow platforms to stamp their OEM ID into ACPI table headers
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiMcfgOemTableId|0|UINT64|0x0002000C
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiMadtOemTableId|0|UINT64|0x0002000D
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiHpetOemTableId|0|UINT64|0x0002000E
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiDsdtOemTableId|0|UINT64|0x0002000F
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiCpuSsdtOemTableId|0|UINT64|0x00020010
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiEspiUartSsdtOemTableId|0|UINT64|0x00020011
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiPciSsdtOemTableId|0|UINT64|0x00020012
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiSysDevSsdtOemTableId|0|UINT64|0x00020013
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdAcpiSerialSsdtOemTableId|0|UINT64|0x00020014
+
+  #
+  # ACPI non-feature PCDs
+  #
+  ## NUMA CCD ordering — platform-supplied byte array controlling CCD NUMA domain order
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdNumaCcdOrder|{0xFF}|VOID*|0x00020015
+  ## Legacy UART IRQ assignments for standard I/O port ranges
+  gAmdPlatformPkgTokenSpaceGuid.PcdLegacyUartIrq0x2e8|0xFF|UINT8|0x00020016
+  gAmdPlatformPkgTokenSpaceGuid.PcdLegacyUartIrq0x2f8|0xFF|UINT8|0x00020017
+  gAmdPlatformPkgTokenSpaceGuid.PcdLegacyUartIrq0x3e8|0xFF|UINT8|0x00020018
+  gAmdPlatformPkgTokenSpaceGuid.PcdLegacyUartIrq0x3f8|0xFF|UINT8|0x00020019
+
+  ## Board ID to board-name mapping table used by BoardIdValidatePei.
+  gAmdPlatformPkgTokenSpaceGuid.PcdPlatformBoardIdNameTable|{0x0}|PLATFORM_BOARD_ID_NAME_TABLE|0x00020026 {
+  <HeaderFiles>
+    Pcd/BoardIdValidatePcd.h
+  <Packages>
+    AmdPlatformPkg/AmdPlatformPkg.dec
+    MdePkg/MdePkg.dec
+  }
+
   #
   # IPMI Interface Type
   #
@@ -81,6 +290,27 @@
   }
 
   #
+  # PCIe hot-plug resource padding PCDs (used by PciHotPlugInit)
+  gAmdPlatformPkgTokenSpaceGuid.PcdPciHotPlugResourcePadIo|0x00001000|UINT32|0x20000000
+  gAmdPlatformPkgTokenSpaceGuid.PcdPciHotPlugResourcePadPMem|0x00200000|UINT32|0x20000001
+  gAmdPlatformPkgTokenSpaceGuid.PcdPciHotPlugResourcePadMem|0x00100000|UINT32|0x20000002
+  gAmdPlatformPkgTokenSpaceGuid.PcdPciHotPlugResourcePadBus|2|UINT8|0x20000003
+
+  # NV Store restore-default PCDs (used by RestoreDefaultPei, NvStoreRestoreDefaultSmm)
+  #
+  gAmdPlatformPkgTokenSpaceGuid.PcdFlashNvStorageVariableDefaultBase|0x00000000|UINT32|0x50000020
+  gAmdPlatformPkgTokenSpaceGuid.PcdFlashNvStorageVariablePrimaryOffset|0x00000000|UINT32|0x50000010
+  gAmdPlatformPkgTokenSpaceGuid.PcdFlashNvStorageVariableDefaultOffset|0x00000000|UINT32|0x50000040
+  gAmdPlatformPkgTokenSpaceGuid.PcdFlashNvStorageVariablePrimaryBase|0x00000000|UINT32|0x50000000
+  gAmdPlatformPkgTokenSpaceGuid.PcdFlashNvStorageVariableDefaultSize|0x00000000|UINT32|0x50000030
+  gAmdPlatformPkgTokenSpaceGuid.PcdFlashNvStorageBlockSize|0x1000|UINT32|0x0002001A
+  gAmdPlatformPkgTokenSpaceGuid.PcdFlashAreaBaseAddress|0xFF000000|UINT32|0x10000001
+  gAmdPlatformPkgTokenSpaceGuid.PcdFlashAreaSize|0x00000000|UINT32|0x20000011
+
+  # Indicate how many size needs to be configured for SMM in S3 resume path
+  gAmdPlatformPkgTokenSpaceGuid.PcdS3ExtraMemSize|0x400000|UINT32|0x6A00000B
+
+  #
   # SPI PCDs
   #
   gAmdPlatformPkgTokenSpaceGuid.PcdAmdSpiRetryCount|0xFFFFFFFF|UINT32|0x00020006
@@ -89,6 +319,10 @@
   # eSPI PCDs
   #
   gAmdPlatformPkgTokenSpaceGuid.PcdAmdEspiOffset|0x10000|UINT32|0x00040003
+
+  ## DHCP Configuration PCDs
+  #  @Prompt IP retry count to obtain DHCP information
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdGetIpInfoRetryCount|100|UINT8|0x00040004
 
   #
   # ROM selection PCDs
@@ -123,7 +357,12 @@
   gAmdPlatformPkgTokenSpaceGuid.PcdAmdSmbiosType9SlotCharacteristics2.AsyncSurpriseRemoval|0
   gAmdPlatformPkgTokenSpaceGuid.PcdAmdSmbiosType9SlotCharacteristics2.FlexbusSlotCxl10Capable|0
   gAmdPlatformPkgTokenSpaceGuid.PcdAmdSmbiosType9SlotCharacteristics2.FlexbusSlotCxl20Capable|0
-  gAmdPlatformPkgTokenSpaceGuid.PcdAmdSmbiosType9SlotCharacteristics2.Reserved|0
+  gAmdPlatformPkgTokenSpaceGuid.PcdAmdSmbiosType9SlotCharacteristics2.FlexbusSlotCxl30Capable|0
+
+[PcdsPatchableInModule]
+  ## Size of the remote flash ROM.<BR><BR>
+  # @Prompt Remote Flash ROM Size.
+  gAmdPlatformPkgTokenSpaceGuid.PcdRemoteFlashRomSize|0x00000000|UINT32|0x20000021
 
 [PcdsDynamic, PcdsDynamicEx]
 
@@ -132,6 +371,12 @@
   gAmdPlatformPkgTokenSpaceGuid.PcdType11OemStrings|NULL|VOID*|0x00030002
   gAmdPlatformPkgTokenSpaceGuid.PcdType12SystemCfgOptionsCount|0|UINT8|0x00030003
   gAmdPlatformPkgTokenSpaceGuid.PcdType12SystemCfgOptions|NULL|VOID*|0x00030004
+
+  ## Platform board name string used by BoardIdValidatePei.
+  gAmdPlatformPkgTokenSpaceGuid.PcdPlatformBoardName|{""}|VOID*|0x00030005
+
+  ## BIOS version string used by BoardIdValidatePei.
+  gAmdPlatformPkgTokenSpaceGuid.PcdBiosVersionString|{""}|VOID*|0x00030006
 
 [PcdsFeatureFlag]
   ## ROM Armor PCDs

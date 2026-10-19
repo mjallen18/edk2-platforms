@@ -76,10 +76,10 @@
 !include MinPlatformPkg/Include/Dsc/CoreCommonLib.dsc
 !include MinPlatformPkg/Include/Dsc/CorePeiLib.dsc
 !include MinPlatformPkg/Include/Dsc/CoreDxeLib.dsc
-!include GlymurMinPlatformPkg/Include/Dsc/Stage1.dsc.inc
-!include GlymurMinPlatformPkg/Include/Dsc/Stage2.dsc.inc
-!include GlymurMinPlatformPkg/Include/Dsc/Stage3.dsc.inc
-!include GlymurMinPlatformPkg/Include/Dsc/Stage4.dsc.inc
+!include QualcommMinPlatformPkg/Include/Dsc/Stage1.dsc.inc
+!include QualcommMinPlatformPkg/Include/Dsc/Stage2.dsc.inc
+!include QualcommMinPlatformPkg/Include/Dsc/Stage3.dsc.inc
+!include QualcommMinPlatformPkg/Include/Dsc/Stage4.dsc.inc
 
 #
 # Qualcomm Silicon and Platform dsc
@@ -141,5 +141,4 @@
   gQualcommMinPlatformPkgTokenSpaceGuid.PcdTrace32DdrSize                 | 0x00005000
 
 [LibraryClasses.Common]
-  BoardInitLib            | GlymurMinPlatformPkg/Library/BoardInitLib/BoardInitLib.inf
   PlatformHookLib         | MdeModulePkg/Library/BasePlatformHookLibNull/BasePlatformHookLibNull.inf

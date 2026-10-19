@@ -7,6 +7,7 @@
 ##
 
 [LibraryClasses.Common]
+  BoardInitLib|QualcommMinPlatformPkg/Library/BoardInitLib/BoardInitLib.inf
   SerialPortLib|Silicon/Qualcomm/Library/GeniSerialPortLib/GeniSerialPortLib.inf
   ReportFvLib|QualcommMinPlatformPkg/Library/PeiReportFvLib/PeiReportFvLib.inf
   GptLib|MdeModulePkg/Library/GptLib/GptLib.inf
@@ -16,7 +17,7 @@
 
   ArmLib|MdePkg/Library/ArmLib/ArmBaseLib.inf
   ArmMmuLib|UefiCpuPkg/Library/ArmMmuLib/ArmMmuBaseLib.inf
-  ArmTransferListLib|ArmPkg/Library/ArmTransferListLib/ArmTransferListLib.inf
+  ArmTransferListLib|MdePkg/Library/ArmTransferListLib/ArmTransferListLib.inf
   CacheMaintenanceLib|ArmPkg/Library/ArmCacheMaintenanceLib/ArmCacheMaintenanceLib.inf
   PeiServicesTablePointerLib|ArmPkg/Library/PeiServicesTablePointerLib/PeiServicesTablePointerLib.inf
 

@@ -4,7 +4,7 @@
 # This provides platform specific component descriptions and libraries that
 # conform to EFI/Framework standards.
 #
-# Copyright (c) 2018 - 2024, ARM Limited. All rights reserved.<BR>
+# Copyright (c) 2018 - 2024, ARM Limited. All rights reserved.<BR>
 #
 # SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -20,7 +20,7 @@
   PLATFORM_GUID                  = 9af67d31-7de8-4a71-a9a8-a597a27659ce
   PLATFORM_VERSION               = 0.1
   DSC_SPECIFICATION              = 0x0001001B
-  OUTPUT_DIRECTORY               = Build/$(PLATFORM_NAME)
+!include Platform/ARM/ArmPlatformOutput.dsc.inc
   SUPPORTED_ARCHITECTURES        = AARCH64
   BUILD_TARGETS                  = NOOPT|DEBUG|RELEASE
   SKUID_IDENTIFIER               = DEFAULT
@@ -36,9 +36,6 @@
   ArmLib|MdePkg/Library/ArmLib/ArmBaseLib.inf
   ArmMmuLib|UefiCpuPkg/Library/ArmMmuLib/ArmMmuBaseLib.inf
   ArmPlatformLib|Silicon/ARM/NeoverseN1Soc/Library/PlatformLib/PlatformLib.inf
-  BasePathLib|ShellPkg/Library/UefiShellLib/UefiShellLib.inf
-  HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
-  TimerLib|ArmPkg/Library/ArmArchTimerLib/ArmArchTimerLib.inf
   UefiUsbLib|MdePkg/Library/UefiUsbLib/UefiUsbLib.inf
 
   # file explorer library support
@@ -60,16 +57,7 @@
   PeiServicesTablePointerLib|ArmPkg/Library/PeiServicesTablePointerLib/PeiServicesTablePointerLib.inf
   ReportStatusCodeLib|MdePkg/Library/BaseReportStatusCodeLibNull/BaseReportStatusCodeLibNull.inf
 
-[LibraryClasses.common.PEI_CORE]
-  PeiCoreEntryPoint|MdePkg/Library/PeiCoreEntryPoint/PeiCoreEntryPoint.inf
-
-[LibraryClasses.common.PEIM]
-  PeimEntryPoint|MdePkg/Library/PeimEntryPoint/PeimEntryPoint.inf
-
 [LibraryClasses.common.DXE_CORE]
-  DxeCoreEntryPoint|MdePkg/Library/DxeCoreEntryPoint/DxeCoreEntryPoint.inf
-  HobLib|MdePkg/Library/DxeCoreHobLib/DxeCoreHobLib.inf
-  MemoryAllocationLib|MdeModulePkg/Library/DxeCoreMemoryAllocationLib/DxeCoreMemoryAllocationLib.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
 
 [LibraryClasses.common.DXE_DRIVER]
@@ -78,7 +66,6 @@
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
   BaseMemoryLib|MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
-  HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
 !if $(TARGET) != RELEASE
   DebugLib|MdePkg/Library/DxeRuntimeDebugLibSerialPort/DxeRuntimeDebugLibSerialPort.inf
 !endif
@@ -131,9 +118,9 @@
   gArmPlatformTokenSpaceGuid.PL011UartInterrupt|95
 
   # PL011 Serial Debug UART (DBG2)
-  gArmPlatformTokenSpaceGuid.PcdSerialDbgRegisterBase|0x1C0A0000
+  gArmPlatformTokenSpaceGuid.PcdSerialDbgRegisterBase|0x1C0A0000
   gArmPlatformTokenSpaceGuid.PcdSerialDbgUartBaudRate|gEfiMdePkgTokenSpaceGuid.PcdUartDefaultBaudRate
-  gArmPlatformTokenSpaceGuid.PcdSerialDbgUartClkInHz|24000000
+  gArmPlatformTokenSpaceGuid.PcdSerialDbgUartClkInHz|24000000
 
   # SBSA Watchdog
   gArmTokenSpaceGuid.PcdGenericWatchdogEl2IntrNum|93

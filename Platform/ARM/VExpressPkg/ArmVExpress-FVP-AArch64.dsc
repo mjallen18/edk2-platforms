@@ -15,11 +15,7 @@
   PLATFORM_GUID                  = 0de70077-9b3b-43bf-ba38-0ea37d77141b
   PLATFORM_VERSION               = 0.1
   DSC_SPECIFICATION              = 0x00010005
-!ifdef $(EDK2_OUT_DIR)
-  OUTPUT_DIRECTORY               = $(EDK2_OUT_DIR)
-!else
-  OUTPUT_DIRECTORY               = Build/ArmVExpress-FVP-AArch64
-!endif
+!include Platform/ARM/ArmPlatformOutput.dsc.inc
   SUPPORTED_ARCHITECTURES        = AARCH64
   BUILD_TARGETS                  = DEBUG|RELEASE
   SKUID_IDENTIFIER               = DEFAULT
@@ -94,6 +90,7 @@
   Tpm2HelpLib|SecurityPkg/Library/Tpm2HelpLib/Tpm2HelpLib.inf
   TpmMeasurementLib|SecurityPkg/Library/DxeTpmMeasurementLib/DxeTpmMeasurementLib.inf
   Tcg2PhysicalPresenceLib|SecurityPkg/Library/DxeTcg2PhysicalPresenceLib/DxeTcg2PhysicalPresenceLib.inf
+  Tcg2PhysicalPresencePromptLib|SecurityPkg/Library/Tcg2PhysicalPresencePromptLib/Tcg2PhysicalPresencePromptLibConsole.inf
   Tcg2PpVendorLib|SecurityPkg/Library/Tcg2PpVendorLibNull/Tcg2PpVendorLibNull.inf
 !endif
 
@@ -160,7 +157,11 @@
   #
 !if $(ENABLE_STMM) == TRUE
   ## MM Communicate
+!if $(ENABLE_FIRMWARE_UPDATE) == TRUE
+  gArmTokenSpaceGuid.PcdMmBufferBase|0xFBF00000
+!else
   gArmTokenSpaceGuid.PcdMmBufferBase|0xFEF00000
+!endif
   gArmTokenSpaceGuid.PcdMmBufferSize|0x10000
 !endif
 
@@ -278,8 +279,16 @@
   # Normal pseudo crbs which locality from 0 to 3 are allocated
   # at the start of System Memory.
   #
+!if $(ENABLE_FIRMWARE_UPDATE) == TRUE
+  #
+  # When ENABLE_FIRMWARE_UPDATE, TZC DRAM size is 64MB.
+  #
+  gEfiSecurityPkgTokenSpaceGuid.PcdTpmBaseAddress|0xfbf10000
+  gEfiSecurityPkgTokenSpaceGuid.PcdTpmMaxAddress|0xfbf13fff
+!else
   gEfiSecurityPkgTokenSpaceGuid.PcdTpmBaseAddress|0xfef10000
   gEfiSecurityPkgTokenSpaceGuid.PcdTpmMaxAddress|0xfef13fff
+!endif
   gEfiSecurityPkgTokenSpaceGuid.PcdTpmCrbRegionSize|0x4000
   gArmVExpressTokenSpaceGuid.PcdTpmUseSipSmc|FALSE
   gEdkiiDynamicTablesPkgTokenSpaceGuid.PcdGenTpm2DeviceTable|TRUE
@@ -453,6 +462,11 @@
     <PcdsFixedAtBuild>
       gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase|0x1c090000
       gArmPlatformTokenSpaceGuid.PL011UartInterrupt|0x25
+!if $(ENABLE_TPM) == TRUE
+    <LibraryClasses>
+      NULL|SecurityPkg/Library/Tpm2DeviceLibFfa/Tpm2InstanceLibFfa.inf
+      NULL|SecurityPkg/Library/Tpm2CommandLib/Tpm2CommandLib.inf
+!endif
   }
 
   ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf

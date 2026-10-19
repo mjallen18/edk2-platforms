@@ -1,12 +1,19 @@
 /** @file
 
-  Copyright (c) 2017 - 2025, Arm Limited. All rights reserved.<BR>
+  Copyright (c) 2017 - 2026, Arm Limited. All rights reserved.<BR>
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Glossary:
     - Cm or CM   - Configuration Manager
     - Obj or OBJ - Object
+
+  @par Reference(s):
+    - Base Platform interrupt assignments [https://developer.arm.com/documentation/110379/1131/Base-Platform/Base-Platform-interrupt-assignments]
+    - Base Platform Memory Map [https://support.arm.com/documentation/110379/1132/Base-Platform/Base-Platform-memory-map]
+    - Base Platform GICv5 interrupt assignments [https://support.arm.com/documentation/110379/1132/Base-Platform/FVP-Base-RevC-2xAEMvA-GICv5-platform-interrupt-assignments]
+    - GICv5 specification [https://support.arm.com/documentation/111701/latest]
+
 **/
 
 #ifndef CONFIGURATION_MANAGER_H__
@@ -17,6 +24,7 @@
     containing the AML bytecode array.
 */
 extern CHAR8  dsdt_aml_code[];
+extern CHAR8  dsdtgicv5_aml_code[];
 
 /** The configuration manager version.
 */
@@ -49,7 +57,17 @@ extern CHAR8  dsdt_aml_code[];
     VGicIrq,                  /* UINT32  VGICMaintenanceInterrupt     */ \
     0,                        /* UINT64  GICRBaseAddress              */ \
     Mpidr,                    /* UINT64  MPIDR                        */ \
-    EnergyEfficiency          /* UINT8   ProcessorPowerEfficiencyClass*/ \
+    EnergyEfficiency,         /* UINT8   ProcessorPowerEfficiencyClass*/ \
+    0,                        /* UINT16  SpeOverflowInterrupt         */ \
+    0,                        /* UINT32  ProximityDomain              */ \
+    0,                        /* UINT32  ClockDomain                  */ \
+    0,                        /* UINT32  AffinityFlags                */ \
+    CM_NULL_TOKEN,            /* CM_OBJECT_TOKEN CpcToken             */ \
+    0,                        /* UINT16  TrbeInterrupt                */ \
+    CM_NULL_TOKEN,            /* CM_OBJECT_TOKEN EtToken              */ \
+    CM_NULL_TOKEN,            /* CM_OBJECT_TOKEN PsdToken             */ \
+    CM_NULL_TOKEN,            /* CM_OBJECT_TOKEN ProximityDomainToken */ \
+    CM_NULL_TOKEN,            /* CM_OBJECT_TOKEN ClockDomainToken     */ \
     }
 
 /** A helper macro for populating the Processor Hierarchy Node flags
@@ -119,12 +137,20 @@ typedef EFI_STATUS (*CM_OBJECT_HANDLER_PROC) (
 /** The number of ACPI tables to install
 */
 #ifdef ENABLE_TPM
-#define PLAT_ACPI_TABLE_COUNT       12
+#define PLAT_ACPI_TABLE_COUNT  14
 #else
-#define PLAT_ACPI_TABLE_COUNT       11
+#define PLAT_ACPI_TABLE_COUNT  13
 #endif
 
+#ifdef ENABLE_TPM
+#define PLAT_SMBIOS_TABLE_COUNT     3
+#else
 #define PLAT_SMBIOS_TABLE_COUNT     2
+#endif
+
+/** The number of PL050 keyboard/mouse interfaces.
+*/
+#define PLAT_PL050_COUNT  2
 
 /** The number of platform generic timer blocks
 */
@@ -140,7 +166,7 @@ typedef EFI_STATUS (*CM_OBJECT_HANDLER_PROC) (
 
 /** Count of PCI device legacy interrupt mapping struct.
 */
-#define PCI_INTERRUPT_MAP_COUNT     4
+#define PCI_INTERRUPT_MAP_COUNT     8
 
 /** PCI space codes.
 */
@@ -223,6 +249,9 @@ typedef struct PlatformRepositoryInfo {
   /// Power management profile information
   CM_ARCH_COMMON_POWER_MANAGEMENT_PROFILE_INFO  PmProfileInfo;
 
+  /// PL050 keyboard/mouse interface information
+  CM_ARM_PL050_INFO                     Pl050Info[PLAT_PL050_COUNT];
+
   /// GIC CPU interface information
   CM_ARM_GICC_INFO                      GicCInfo[PLAT_CPU_COUNT];
 
@@ -255,6 +284,18 @@ typedef struct PlatformRepositoryInfo {
   /// GIC ITS information
   CM_ARM_GIC_ITS_INFO                   GicItsInfo;
 
+  /// GIC ITSv5 information
+  CM_ARM_GIC_ITSV5_INFO                 GicItsV5Info;
+
+  /// GIC ITSv5 Translate Frame information
+  CM_ARM_GIC_ITSV5_TRANSLATE_FRAME_INFO GicItsV5TransFrameInfo[1];
+
+  /// GIC IRS information
+  CM_ARM_GIC_IRS_INFO                   GicIrsInfo;
+
+  /// GIC IWB information
+  CM_ARM_GIC_IWB_INFO                   GicIwbInfo;
+
   // FVP RevC components
   /// SMMUv3 node
   CM_ARM_SMMUV3_NODE                    SmmuV3Info;
@@ -269,7 +310,7 @@ typedef struct PlatformRepositoryInfo {
   CM_ARM_ROOT_COMPLEX_NODE              RootComplexInfo;
 
   /// Array of DeviceID mapping
-  CM_ARM_ID_MAPPING                     DeviceIdMapping[2];
+  CM_ARM_ID_MAPPING                     DeviceIdMapping[4];
 
   /// PCI configuration space information
   CM_ARCH_COMMON_PCI_CONFIG_SPACE_INFO  PciConfigInfo;
@@ -326,8 +367,10 @@ typedef struct PlatformRepositoryInfo {
   CM_ARCH_COMMON_TPM2_INTERFACE_INFO    TpmInfo;
 
   /// TPM2 Device Information
-  CM_ARCH_COMMON_TPM2_DEVICE_INFO       TpmDevInfo;
+  CM_ARCH_COMMON_TPM_DEVICE_INFO        TpmDevInfo;
 #endif
+
+  BOOLEAN                               HasGicV5;
 } EDKII_PLATFORM_REPOSITORY_INFO;
 
 #endif // CONFIGURATION_MANAGER_H__
