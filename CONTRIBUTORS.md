@@ -19,14 +19,12 @@ out-of-sync with CODEOWNERS and/or REVIEWERS over time and need an occasional re
 | Bob Feng               | bob.c.feng@intel.com             | [@BobCF](https://github.com/BobCF)                     |
 | caiyuqing379           | caiyuqing_hz@outlook.com         | [@caiyuqing379](https://github.com/caiyuqing379)       |
 | Chao Li                | lichao@loongson.cn               | [@kilaterlee](https://github.com/kilaterlee)           |
-| Chasel Chiu            | chasel.chiu@intel.com            | [@ChaselChiu](https://github.com/ChaselChiu)           |
 | Chuong Tran            | chuong@os.amperecomputing.com    | [@chuongtranle](https://github.com/chuongtranle)       |
 | dahogn                 | dahogn@hotmail.com               | [@dahogn](https://github.com/dahogn)                   |
-| Dandan Bi              | dandan.bi@intel.com              | [@dandanbi](https://github.com/dandanbi)               |
 | Daniel Schaefer        | git@danielschaefer.me            | [@JohnAZoidberg](https://github.com/JohnAZoidberg)     |
 | Deepika Kethi Reddy    | deepika.kethi.reddy@intel.com    | [@dkethire](https://github.com/dkethire)               |
+| Dhanush Ganesh         | dhanushg@qti.qualcomm.com        | [@dhanushg1197](https://github.com/dhanushg1197)       |
 | Duke Zhai              | duke.zhai@amd.com                | [@mingxzha](https://github.com/mingxzha)               |
-| Eric Dong              | eric.dong@intel.com              | [@ydong10](https://github.com/ydong10)                 |
 | Eric Xing              | eric.xing@amd.com                | [@exinghr](https://github.com/exinghr)                 |
 | Graeme Gregory         | graeme@xora.org.uk               |                                                        |
 | Igniculus Fu           | igniculus.fu@amd.com             | [@fhh200000](https://github.com/fhh200000)             |
@@ -53,7 +51,6 @@ out-of-sync with CODEOWNERS and/or REVIEWERS over time and need an occasional re
 | Pedro Falcato          | pedro.falcato@gmail.com          | [@heatd](https://github.com/heatd)                     |
 | Peng Xie               | xiepeng@phytium.com.cn           |                                                        |
 | Ran Wang               | wangran@bosc.ac.cn               |                                                        |
-| Ray Ni                 | ray.ni@intel.com                 | [@niruiyu](https://github.com/niruiyu)                 |
 | Ricardo Salveti        | ricardo.salveti@oss.qualcomm.com | [@ricardosalveti](https://github.com/ricardosalveti)   |
 | Rebecca Cran           | rebecca@os.amperecomputing.com   | [@bexcran](https://github.com/bexcran)                 |
 | Sai Chaganty           | rangasai.v.chaganty@intel.com    | [@SaiChaganty](https://github.com/SaiChaganty)         |
@@ -61,6 +58,7 @@ out-of-sync with CODEOWNERS and/or REVIEWERS over time and need an occasional re
 | Sami Mujawar           | sami.mujawar@arm.com             | [@samimujawar](https://github.com/samimujawar)         |
 | Sumit Garg             | sumit.garg@oss.qualcomm.com      | [@b49020](https://github.com/b49020)                   |
 | Sunil V L              | sunilvl@ventanamicro.com         | [@vlsunil](https://github.com/vlsunil)                 |
+| Tabish Sarwar          | tsarwar@qti.qualcomm.com         | [@tsarwar-dev](https://github.com/tsarwar-dev)         |
 | Theo Jehl              | theojehl76@gmail.com             | [@theomacx86](https://github.com/theomacx86)           |
 | Thomas Abraham         | thomas.abraham@arm.com           |                                                        |
 | USER0FISH              | libing1202@outlook.com           | [@USER0FISH](https://github.com/USER0FISH)             |
