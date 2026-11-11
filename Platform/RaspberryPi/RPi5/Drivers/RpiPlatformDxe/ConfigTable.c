@@ -563,6 +563,14 @@ AcpiOsBootHandler (
 
   AcpiFixupPcieEcam (OsType);
 
+  //
+  // V3D0 repeats GPU0's V3D resources for the Linux v3d driver. Windows binds
+  // GPU0 itself, so hide V3D0 from it.
+  //
+  if (OsType == AcpiOsWindows) {
+    AcpiUpdateSdtNameInteger (mDsdtTable, "V3DE", 0);
+  }
+
   AcpiUpdateChecksum ((UINT8 *)mDsdtTable, mDsdtTable->Length);
 }
 

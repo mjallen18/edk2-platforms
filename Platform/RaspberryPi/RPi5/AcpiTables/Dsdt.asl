@@ -539,6 +539,121 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RPIFDN", "RPI5    ", 2)
       }
     } // Device (GPU0)
 
+    // V3D 7.1 render engine for the Linux v3d driver ("brcm,2712-v3d"). The
+    // ranges and interrupts are GPU0's first three and first two, identical so
+    // that both nodes can claim them, in the order the driver indexes them:
+    // hub, core0, sms; hub, core. GPU0 is left as Windows expects it and this
+    // node is hidden from Windows by patching V3DE to 0 (RpiPlatformDxe).
+    //
+    // Power and reset mirror Linux bcm2835-power.c for BCM2712: the GRAFX
+    // domain (PM_GRAFX) and the V3D reset (PM_V3DRSTN in PM_GRAFX_2712).
+    // Every PM write carries the 0x5A password in the top byte.
+    Device (V3D0) {
+      Name (_HID, "PRP0001")
+      Name (_UID, 0x0)
+      Name (_CCA, 0x0)
+      Name (V3DE, 0xF)
+
+      Method (_STA) {
+        Return (V3DE)
+      }
+
+      Method (_CRS, 0x0, Serialized) {
+        Name (RBUF, ResourceTemplate () {
+          QWORDMEMORY_BUF (00, ResourceConsumer)
+          QWORDMEMORY_BUF (01, ResourceConsumer)
+          QWORDMEMORY_BUF (02, ResourceConsumer)
+          Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { BCM2712_V3D_HUB_INTERRUPT }
+          Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { BCM2712_V3D_CORE_INTERRUPT }
+        })
+        QWORD_SET (00, BCM2712_V3D_HUB_BASE,   BCM2712_V3D_HUB_LENGTH,   0)
+        QWORD_SET (01, BCM2712_V3D_CORE0_BASE, BCM2712_V3D_CORE0_LENGTH, 0)
+        QWORD_SET (02, BCM2712_V3D_SMS_BASE,   BCM2712_V3D_SMS_LENGTH,   0)
+        Return (RBUF)
+      }
+
+      Name (_DSD, Package () {
+        ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+        Package () {
+          Package () { "compatible", "brcm,2712-v3d" }
+        }
+      })
+
+      OperationRegion (V3PM, SystemMemory, BCM2712_PM_BASE, BCM2712_PM_LENGTH)
+      Field (V3PM, DWordAcc, NoLock, Preserve) {
+        Offset (0x10C), GRFX, 32, // PM_GRAFX
+        Offset (0x304), V3DR, 32  // PM_GRAFX_2712
+      }
+
+      // Polls PM_GRAFX for the bits in Arg0 for about 100 us.
+      Method (GRFW, 1) {
+        Local0 = 100
+        While (Local0) {
+          If (GRFX & Arg0) {
+            Return (1)
+          }
+          Stall (1)
+          Local0--
+        }
+        Return ((GRFX & Arg0) != 0)
+      }
+
+      // D0 only with GRAFX powered (PM_POWUP) and V3D out of reset (PM_V3DRSTN),
+      // so _PS0 runs on first use whatever state the VideoCore left.
+      Method (_PSC, 0x0, Serialized) {
+        If ((GRFX & 0x1) && (V3DR & 0x40)) {
+          Return (0)
+        }
+        Return (3)
+      }
+
+      Method (_PS0, 0x0, Serialized) {
+        // bcm2835_power_power_on(): leave GRAFX alone if it is already on.
+        If (!(GRFX & 0x1)) {
+          // Ramp the inrush limit 3.5 -> 20 mA. As in mainline every step is
+          // taken and only the last POWOK poll counts.
+          Local0 = 0
+          While (Local0 <= 3) {
+            GRFX = 0x5A000000 | (GRFX & 0x00FFFFFF & ~0x6000) | (Local0 << 13) | 0x1
+            Local1 = GRFW (0x2)
+            Local0++
+          }
+          If (!Local1) {
+            // Clear PM_POWUP | PM_INRUSH_MASK; V3D stays in reset.
+            GRFX = 0x5A000000 | (GRFX & 0x00FFFFFF & ~0x6001)
+            Return
+          }
+
+          // Drop electrical isolation (PM_ISPOW), repair memory (PM_MEMREP,
+          // wait for PM_MRDONE), drop functional isolation (PM_ISFUNC).
+          GRFX = 0x5A000000 | (GRFX & 0x00FFFFFF) | 0x4
+          GRFX = 0x5A000000 | (GRFX & 0x00FFFFFF) | 0x8
+          If (!GRFW (0x10)) {
+            GRFX = 0x5A000000 | (GRFX & 0x00FFFFFF & ~0x4)
+            GRFX = 0x5A000000 | (GRFX & 0x00FFFFFF & ~0x6001)
+            Return
+          }
+          GRFX = 0x5A000000 | (GRFX & 0x00FFFFFF) | 0x20
+        }
+
+        // bcm2835_asb_power_on(): let the reset propagate, then deassert it.
+        Stall (1)
+        V3DR = 0x5A000000 | (V3DR & 0x00FFFFFF) | 0x40
+      }
+
+      // bcm2835_asb_power_off(): assert PM_V3DRSTN. GRAFX stays on.
+      Method (_PS3, 0x0, Serialized) {
+        V3DR = 0x5A000000 | (V3DR & 0x00FFFFFF & ~0x40)
+      }
+
+      // bcm2835_reset_reset(): V3D domain off, then on. Leaves GRAFX alone.
+      Method (_RST, 0x0, Serialized) {
+        V3DR = 0x5A000000 | (V3DR & 0x00FFFFFF & ~0x40)
+        Stall (1)
+        V3DR = 0x5A000000 | (V3DR & 0x00FFFFFF) | 0x40
+      }
+    } // Device (V3D0)
+
     // Always-on edge-latched interrupt controller used by HDMI and CEC.
     Device (AONI) {
       Name (_HID, "BRCM0A01")
