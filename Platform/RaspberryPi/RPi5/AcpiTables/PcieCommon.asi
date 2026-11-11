@@ -59,8 +59,16 @@ Device (RES0) {
   Method (_CRS, 0, Serialized) {
     Name (RBUF, ResourceTemplate () {
       QWORDMEMORY_BUF (00, ResourceConsumer)
+      QWORDMEMORY_BUF (01, ResourceConsumer)
     })
     QWORD_SET (00, CFGB + PCIE_EXT_CFG_DATA, 0x1000, 0)
+    //
+    // In Graviton ECAM mode, AcpiFixupPcieEcam points MCFG at a bogus
+    // window (1 TB + segment * 1 MB, bus 0 only). Reserve it so the OS
+    // doesn't flag the ECAM area as unreserved. Must stay after the real
+    // window: the OS quirk takes the first resource.
+    //
+    QWORD_SET (01, 0x10000000000 + (_SEG * 0x100000), 0x100000, 0)
     Return (RBUF)
   }
 }
