@@ -48,9 +48,7 @@ EFI_ACPI_6_3_GENERIC_TIMER_DESCRIPTION_TABLES Gtdt = {
     GTDT_GTIMER_FLAGS,                            // UINT32  NonSecurePL2TimerFlags
     0xFFFFFFFFFFFFFFFF,                           // UINT64  CntReadBasePhysicalAddress
     0,                                            // UINT32  PlatformTimerCount
-    0,                                            // UINT32  PlatformTimerOffset
-    FixedPcdGet32 (PcdArmArchTimerHypVirtIntrNum),// UINT32  VirtualPL2TimerGSIV
-    GTDT_GTIMER_FLAGS                             // UINT32  VirtualPL2TimerFlags
+    0                                             // UINT32 PlatfromTimerOffset
   },
 };
 
