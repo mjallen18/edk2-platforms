@@ -284,8 +284,10 @@ LibRtcInitialize (
   }
 
   //
-  // An unprogrammed RTC starts at Epoch = 0. Seed only that sentinel or an
-  // invalid calendar, never a valid clock merely because its metadata was lost.
+  // An unprogrammed RTC starts counting from Epoch = 0, so by the time we
+  // read it it is small but nonzero. Nothing real predates the build, so seed
+  // anything earlier than that or an invalid calendar, never a valid clock
+  // merely because its metadata was lost.
   //
   Time.TimeZone = EFI_UNSPECIFIED_TIMEZONE;
   Status = LibGetTime (&Time, NULL);
@@ -293,7 +295,7 @@ LibRtcInitialize (
     return Status;
   }
 
-  if (!IsTimeValid (&Time) || EfiTimeToEpoch (&Time) == 0) {
+  if (!IsTimeValid (&Time) || EfiTimeToEpoch (&Time) < BUILD_EPOCH) {
     EpochToEfiTime (BUILD_EPOCH, &Time);
     Status = LibSetTime (&Time);
     if (EFI_ERROR(Status)) {
