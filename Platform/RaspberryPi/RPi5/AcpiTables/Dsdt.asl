@@ -550,7 +550,7 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RPIFDN", "RPI5    ", 2)
     // Every PM write carries the 0x5A password in the top byte.
     Device (V3D0) {
       Name (_HID, "PRP0001")
-      Name (_UID, 0x0)
+      Name (_UID, 0x6)
       Name (_CCA, 0x0)
       Name (V3DE, 0xF)
 
@@ -677,7 +677,7 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RPIFDN", "RPI5    ", 2)
     // deliberately not described.
     Device (WDT0) {
       Name (_HID, "PRP0001")
-      Name (_UID, 0x0)
+      Name (_UID, 0x3)
       Name (_CCA, 0x0)
 
       Method (_CRS, 0x0, Serialized) {
@@ -699,7 +699,7 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RPIFDN", "RPI5    ", 2)
     // RNG200 hardware random number generator.
     Device (RNG0) {
       Name (_HID, "PRP0001")
-      Name (_UID, 0x0)
+      Name (_UID, 0x4)
       Name (_CCA, 0x0)
 
       Method (_CRS, 0x0, Serialized) {
@@ -724,7 +724,7 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RPIFDN", "RPI5    ", 2)
     // and sets the ARM clock through the mailbox itself.
     Device (MBX0) {
       Name (_HID, "PRP0001")
-      Name (_UID, 0x0)
+      Name (_UID, 0x5)
       Name (_CCA, 0x0)
 
       Method (_CRS, 0x0, Serialized) {
