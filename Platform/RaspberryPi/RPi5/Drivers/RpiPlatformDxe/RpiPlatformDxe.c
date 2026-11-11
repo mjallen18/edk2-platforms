@@ -144,6 +144,42 @@ SetCpuClockToMax (
   DEBUG ((DEBUG_INFO, "%a: Set ARM clock to maximum: %r\n", __func__, Status));
 }
 
+STATIC
+VOID
+SetV3dClockToMax (
+  VOID
+  )
+{
+  EFI_STATUS                      Status;
+  RASPBERRY_PI_FIRMWARE_PROTOCOL  *Firmware;
+  UINT32                          Rate;
+
+  Status = gBS->LocateProtocol (
+                  &gRaspberryPiFirmwareProtocolGuid,
+                  NULL,
+                  (VOID **)&Firmware
+                  );
+  if (EFI_ERROR (Status)) {
+    return;
+  }
+
+  //
+  // On a devicetree boot Linux enables the V3D clock and sets it to its
+  // maximum through this mailbox (clk-raspberrypi, "maximize"). Under ACPI
+  // the v3d driver has no clock, so do the same once here. This runs for
+  // every OS, Windows included, like the ARM clock above.
+  //
+  Status = Firmware->SetClockState (RPI_MBOX_CLOCK_RATE_V3D, TRUE);
+  if (!EFI_ERROR (Status)) {
+    Status = Firmware->GetMaxClockRate (RPI_MBOX_CLOCK_RATE_V3D, &Rate);
+  }
+  if (!EFI_ERROR (Status) && (Rate != 0)) {
+    Status = Firmware->SetClockRate (RPI_MBOX_CLOCK_RATE_V3D, Rate, FALSE);
+  }
+
+  DEBUG ((DEBUG_INFO, "%a: Set V3D clock to maximum: %r\n", __func__, Status));
+}
+
 EFI_STATUS
 EFIAPI
 RpiPlatformDxeEntryPoint (
@@ -165,6 +201,7 @@ RpiPlatformDxeEntryPoint (
   SetupVariables ();
   ApplyVariables ();
   SetCpuClockToMax ();
+  SetV3dClockToMax ();
 
   SetupPeripherals ();
 
