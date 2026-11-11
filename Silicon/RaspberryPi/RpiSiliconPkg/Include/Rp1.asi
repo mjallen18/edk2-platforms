@@ -126,7 +126,7 @@ Device (I2C1) {
 // RP1 GPIO and pin controller (the 40-pin header GPIOs), three banks.
 Device (GPI0) {
   Name (_HID, "PRP0001")
-  Name (_UID, 0x0)
+  Name (_UID, 0x2)
 
   Method (_CRS, 0, Serialized) {
     Name (RBUF, ResourceTemplate () {
