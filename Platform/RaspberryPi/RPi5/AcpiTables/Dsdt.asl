@@ -581,6 +581,28 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RPIFDN", "RPI5    ", 2)
       })
     } // Device (WDT0)
 
+    // RNG200 hardware random number generator.
+    Device (RNG0) {
+      Name (_HID, "PRP0001")
+      Name (_UID, 0x0)
+      Name (_CCA, 0x0)
+
+      Method (_CRS, 0x0, Serialized) {
+        Name (RBUF, ResourceTemplate () {
+          QWORDMEMORY_BUF (00, ResourceConsumer)
+        })
+        QWORD_SET (00, BCM2712_RNG_BASE, BCM2712_RNG_LENGTH, 0)
+        Return (RBUF)
+      }
+
+      Name (_DSD, Package () {
+        ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+        Package () {
+          Package () { "compatible", "brcm,bcm2711-rng200" }
+        }
+      })
+    } // Device (RNG0)
+
     // VideoCore firmware property mailbox, exposed for CPU frequency scaling.
     // The OS mailbox/firmware/clock/cpufreq-dt driver stack needs devicetree
     // nodes, so the out-of-tree rpi5-cpufreq driver binds this node directly

@@ -34,6 +34,9 @@
 #define BCM2712_PM_BASE                                   0x107d200000
 #define BCM2712_PM_LENGTH                                 0x604
 
+#define BCM2712_RNG_BASE                                  0x107d208000
+#define BCM2712_RNG_LENGTH                                0x28
+
 #define BCM2712_PINCTRL_BASE                              0x107d504100
 #define BCM2712_PINCTRL_LENGTH                            0x20
 #define BCM2712_PINCTRL_AON_BASE                          0x107d510700
